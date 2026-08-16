@@ -1,0 +1,32 @@
+enabled: true
+replacement: "*"
+
+# Toggle filtering by input surface.
+targets:
+  chat: true
+  sign:
+    enabled: true
+    replacement: "*"
+  anvil:
+    enabled: true
+    replacement: "*"
+
+words:
+  - "NMSL"
+  - "fuck"
+  - "shit"
+
+# Java regular expressions. Existing words and local files remain literal text.
+regex-words: []
+
+# Files under plugins/FXChat/filters/. One word per line; # begins a comment.
+local-files:
+  - "local.txt"
+
+# TrChat cloud thesaurus compatibility. Download runs asynchronously at startup and /fxchat reload.
+cloud:
+  enabled: true
+  urls:
+    - "https://raw.githubusercontent.com/Yurinann/Filter-Thesaurus-Cloud/main/database.json"
+  ignored:
+    - "nt"

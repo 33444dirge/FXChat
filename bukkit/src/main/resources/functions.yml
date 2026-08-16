@@ -1,0 +1,56 @@
+# TrChat-compatible chat functions. Each function can be disabled independently.
+
+mention:
+  enabled: true
+  permission: "fxchat.function.mention"
+  self-mention: false
+  notify: true
+  cooldown: "30s"
+  # (names) is replaced by the current online player-name index.
+  pattern: "@(?<name>(names))"
+
+mention-all:
+  enabled: true
+  permission: "fxchat.function.mentionall"
+  notify: true
+  cooldown: "5m"
+  keys:
+    - "@all"
+    - "@所有人"
+
+item-show:
+  enabled: true
+  permission: ""
+  cooldown: "30s"
+  compatible: false
+  ui: true
+  keys:
+    - "%<num>"
+    - "%i"
+
+inventory-show:
+  enabled: true
+  permission: "fxchat.function.inventoryshow"
+  cooldown: "30s"
+  ui: true
+  keys:
+    - "%inv"
+
+enderchest-show:
+  enabled: true
+  permission: "fxchat.function.enderchestshow"
+  cooldown: "30s"
+  ui: true
+  keys:
+    - "%ec"
+    - "%ender"
+    - "%enderchest"
+
+container-show:
+  enabled: true
+  permission: "fxchat.function.containershow"
+  cooldown: "30s"
+  range: 6
+  ui: true
+  keys:
+    - "%cc"

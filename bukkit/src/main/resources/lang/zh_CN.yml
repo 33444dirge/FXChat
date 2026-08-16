@@ -1,0 +1,178 @@
+command:
+  sudo-usage: "<yellow>用法：/fxc sudo <玩家ID> <消息> [频道] [私聊玩家]</yellow>"
+  sudo-only-player: "<red>只有玩家可以使用 sudo，因为频道取自执行者当前频道。</red>"
+  sudo-target-not-found: "<red>目标玩家必须是本服在线玩家。</red>"
+  sudo-private-target-required: "<yellow>使用私聊频道时必须指定私聊玩家。用法：/fxc sudo <玩家ID> <消息> <私聊频道> <私聊玩家></yellow>"
+  help: |-
+    <aqua>FXChat 命令：</aqua>
+    <gray>/fxchat channel [频道] <玩家> - 切换聊天频道（私聊频道需要指定玩家）</gray>
+    <gray>/msg [玩家] [消息] - 发送私聊消息</gray>
+    <gray>/reply [消息] - 回复最近的私聊</gray>
+    <gray>/fxchat spy [on|off] - 切换私聊监听模式</gray>
+    <gray>/mute [玩家] [原因] [时长] - 禁言玩家</gray>
+    <gray>/fxchat sudo [玩家ID] [消息] [频道] [私聊玩家] - 让指定玩家发送消息</gray>
+    <gray>/fxchat view [item|inventory|enderchest|container] [令牌] - 查看聊天展示</gray>
+    <gray>/fxchat reload - 重载配置</gray>
+    <gray>/fxchat version - 查看版本</gray>
+  version: "<gray>FXChat 版本：<white>{version}</white></gray>"
+  unknown: "<red>未知子命令。使用 /fxchat help 查看帮助。</red>"
+  no-permission: "<red>你没有权限执行此命令。</red>"
+  reload-started: "<yellow>正在重载 FXChat 配置...</yellow>"
+  reload-success: "<green>FXChat 配置重载成功。</green>"
+  reload-failed: "<red>FXChat 配置重载失败，已保留旧配置。</red>"
+  only-player: "<red>只有玩家可以选择聊天频道。</red>"
+  channels: "<gray>可用频道：<white>{channels}</white></gray>"
+  channel-not-found: "<red>聊天频道不存在。</red>"
+  channel-no-permission: "<red>你没有权限使用该聊天频道。</red>"
+  channel-selected: "<green>已切换到聊天频道 <white>{channel}</white>。</green>"
+  channel-already-selected:
+    - type: actionbar
+      text: "<yellow>你已经在聊天频道 <white>{channel}</white> 中。</yellow>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+  view-usage: "<yellow>用法：/fxchat view [item|inventory|enderchest|container] [令牌]</yellow>"
+
+chat:
+  repeated-message: "<yellow>请不要重复发送相同消息。</yellow>"
+  no-permission: "<red>你没有聊天权限。</red>"
+  channel-no-permission: "<red>你没有权限使用该聊天频道。</red>"
+  channel-not-found: "<red>聊天频道不存在。</red>"
+  message-too-long: "<red>消息太长了。</red>"
+  slow-down: "<yellow>请慢一点。</yellow>"
+  no-one-heard:
+    - type: actionbar
+      text: "<gray>附近没有其他人听到你的消息。</gray>"
+
+private:
+  usage: "<yellow>用法：/msg <玩家> [消息]</yellow>"
+  channel-usage:
+    - type: actionbar
+      text: "<red>用法：/fxc channel 私聊 <玩家></red>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+  player-required:
+    - type: actionbar
+      text: "<red>必须指定私聊玩家。用法：/msg <玩家> [消息]</red>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+  channel-entered: "<green>已进入与 <white>{player}</white> 的私聊频道</green>"
+  reply-usage: "<yellow>用法：/reply <消息></yellow>"
+  only-player: "<red>只有玩家可以发送私聊消息。</red>"
+  spy-only-player: "<red>只有玩家可以使用私聊监听。</red>"
+  spy-no-permission: "<red>你没有私聊监听权限。</red>"
+  spy-usage: "<yellow>用法：/fxchat spy [on|off]</yellow>"
+  spy-prefix: "<dark_gray>[监听]</dark_gray> <gold>{sender}</gold> <green>-></green> <aqua>{target}</aqua><gray>: </gray>"
+  spy-enabled:
+    - type: actionbar
+      text: "<green>私聊监听已开启。</green>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_PLING"
+      volume: 1
+      pitch: 1.2
+  spy-disabled:
+    - type: actionbar
+      text: "<yellow>私聊监听已关闭。</yellow>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+  player-not-found:
+    - type: actionbar
+      text: "<red>该玩家不在线。</red>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+  self:
+    - type: actionbar
+      text: "<red>不能给自己发送私聊消息。</red>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+  no-reply:
+    - type: actionbar
+      text: "<red>没有可回复的玩家。</red>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+
+mute:
+  usage: "<yellow>用法：/mute <玩家> <原因> <时长></yellow>"
+  no-permission: "<red>你没有权限使用禁言命令。</red>"
+  player-not-found: "<red>该玩家不在线。</red>"
+  self: "<red>不能禁言自己。</red>"
+  reason-too-long: "<red>禁言原因不能超过 512 个字符。</red>"
+  invalid-duration: "<red>无效时长。示例：30s、10m、2h、1d 或 永久。</red>"
+  database-error: "<red>禁言保存失败，请检查数据库配置。</red>"
+  success: "<green>已禁言 <white>{player}</white>，时长 <white>{duration}</white>，原因：<white>{reason}</white></green>"
+  muted:
+    - type: actionbar
+      text: "<red>你已被禁言。原因：<white>{reason}</white>，剩余：<white>{remaining}</white></red>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+
+function:
+  mention-format: "<dark_green>[@<green>{player}</green>]</dark_green>"
+  mention-hover: "<gray>点击私聊</gray>"
+  mention-all-format: "<dark_green>[@<green>所有人</green>]</dark_green>"
+  mention-all-hover: "<gray>已提醒所有在线玩家</gray>"
+  mention-notify:
+    - type: actionbar
+      text: "<light_purple>玩家 <green>{player}</green> 在聊天中@了你</light_purple>"
+    - type: sound
+      sound: "BLOCK_ANVIL_LAND"
+      volume: 1
+      pitch: 2
+  mention-cooldown:
+    - type: actionbar
+      text: "<yellow>还需 {seconds} 秒才能再次 @玩家。</yellow>"
+  mention-all-cooldown:
+    - type: actionbar
+      text: "<yellow>还需 {seconds} 秒才能再次 @所有人。</yellow>"
+  item-format: "<dark_gray>[<aqua>{item}</aqua> x{amount}]</dark_gray>"
+  item-hover: "<gray>{item} 数量: {amount}</gray>"
+  item-air: "<gray>[空气]</gray>"
+  item-title: "{player} 的物品"
+  item-unavailable: "<red>该物品展示已过期或不存在。</red>"
+  item-cooldown:
+    - type: actionbar
+      text: "<yellow>还需 {seconds} 秒才能再次展示物品。</yellow>"
+  inventory-format: "<dark_gray>[<aqua>{player} 的背包</aqua>]</dark_gray>"
+  inventory-hover: "<gray>点击查看 {player} 的背包</gray>"
+  inventory-title: "{player} 的背包"
+  inventory-unavailable: "<red>该背包展示已过期或不存在。</red>"
+  inventory-cooldown:
+    - type: actionbar
+      text: "<yellow>还需 {seconds} 秒才能再次展示背包。</yellow>"
+  enderchest-format: "<dark_gray>[<aqua>{player} 的末影箱</aqua>]</dark_gray>"
+  enderchest-hover: "<gray>点击查看 {player} 的末影箱</gray>"
+  enderchest-title: "{player} 的末影箱"
+  enderchest-unavailable: "<red>该末影箱展示已过期或不存在。</red>"
+  enderchest-cooldown:
+    - type: actionbar
+      text: "<yellow>还需 {seconds} 秒才能再次展示末影箱。</yellow>"
+  container-format: "<dark_gray>[<aqua>{container}</aqua>]</dark_gray>"
+  container-hover: "<gray>点击查看 {container} 的内容</gray>"
+  container-title: "{container} 容器"
+  container-unknown: "<gray>未知</gray>"
+  container-unavailable: "<red>该容器展示已过期或不存在。</red>"
+  container-no-target:
+    - type: actionbar
+      text: "<yellow>请将准星对准 {range} 格内的容器。</yellow>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+  container-cooldown:
+    - type: actionbar
+      text: "<yellow>还需 {seconds} 秒才能再次展示容器。</yellow>"

@@ -1,0 +1,7 @@
+id: 附近
+# Every alias below is registered as a command at startup.
+aliases: [f]
+permission: ""
+range: 80
+cross-server: false
+format: "<dark_gray>[<aqua>附近</aqua>]</dark_gray><white>{player}</white><gray>: </gray>{message}"

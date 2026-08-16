@@ -1,0 +1,3 @@
+# Set one unique value on every backend server. It must match the Velocity server name.
+enabled: true
+server-name: ""

@@ -1,0 +1,7 @@
+{
+  "id": "fxchat",
+  "name": "FXChat",
+  "version": "${version}",
+  "main": "com.dirges.fxchat.velocity.FXChatVelocity",
+  "authors": ["33444_dirge"]
+}

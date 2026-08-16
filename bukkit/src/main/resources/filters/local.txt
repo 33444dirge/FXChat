@@ -1,0 +1,3 @@
+# One sensitive word per line.
+# Example:
+# example-word

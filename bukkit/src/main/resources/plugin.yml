@@ -1,0 +1,60 @@
+name: FXChat
+version: '${version}'
+main: com.dirges.fxchat.bukkit.FXChatBukkit
+api-version: '1.21'
+folia-supported: true
+authors: [33444_dirge]
+depend: [PlaceholderAPI]
+softdepend: [Lands, CraftEngine, CustomNameplates, BlockLocker]
+
+commands:
+  fxchat:
+    description: Manage FXChat channels and configuration
+    aliases: [fxc]
+    usage: /fxchat <help|channel|reload|version|view|spy|sudo>
+  view-item:
+    description: View an item shared in FXChat
+    usage: /view-item <token>
+  view-inventory:
+    description: View an inventory shared in FXChat
+    usage: /view-inventory <token>
+  view-enderchest:
+    description: View an ender chest shared in FXChat
+    usage: /view-enderchest <token>
+  view-container:
+    description: View a container shared in FXChat
+    usage: /view-container <token>
+
+permissions:
+  fxchat.chat:
+    default: true
+  fxchat.color:
+    default: false
+  fxchat.admin:
+    default: op
+  fxchat.sudo:
+    default: op
+  fxchat.spy:
+    default: op
+  fxchat.mute:
+    default: op
+  fxchat.function.mentionall:
+    default: op
+  fxchat.function.inventoryshow:
+    default: true
+  fxchat.function.enderchestshow:
+    default: true
+  fxchat.function.containershow:
+    default: true
+  fxchat.bypass.mentioncd:
+    default: op
+  fxchat.bypass.mention-allcd:
+    default: op
+  fxchat.bypass.itemcd:
+    default: op
+  fxchat.bypass.inventorycd:
+    default: op
+  fxchat.bypass.enderchestcd:
+    default: op
+  fxchat.bypass.containercd:
+    default: op

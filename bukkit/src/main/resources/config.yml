@@ -1,0 +1,10 @@
+# Locale file name under plugins/FXChat/lang/.
+language: zh_CN
+
+chat:
+  default-channel: 公开
+  private-channel: 私聊
+  cooldown-ms: 750
+  anti-repeat-window-ms: 30000
+  anti-repeat-similarity: 0.85
+  max-length: 256

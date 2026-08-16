@@ -1,0 +1,24 @@
+id: 私聊
+# Private mode is selected by /msg and is not registered as a public alias.
+aliases: []
+permission: ""
+range: -1
+cross-server: true
+# The sender receives sender-format; the target receives receiver-format.
+# {player} and {sender} are the sender name. {target} is the private-message target.
+sender-format: "<yellow>致 <aqua>{target}</aqua>:</yellow> {message}"
+receiver-format: "<gold>{player}</gold> <green>私:</green> {message}"
+
+# Spy viewers receive this format directly; it must include {message}.
+spy-format: "<dark_gray>[监听]</dark_gray> <gold>{sender}</gold> <green>-></green> <aqua>{target}</aqua><gray>: </gray>{message}"
+
+# These commands are registered at startup. Their names and aliases are not in plugin.yml.
+commands:
+  message:
+    name: msg
+    aliases: [tell, w]
+    usage: "/msg <player> [message]"
+  reply:
+    name: reply
+    aliases: [r]
+    usage: "/reply <message>"

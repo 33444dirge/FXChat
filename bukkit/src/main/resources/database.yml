@@ -1,0 +1,13 @@
+# Mute storage. H2 is local; use MySQL when multiple servers share one database.
+type: h2
+
+h2:
+  file: data/fxchat
+
+mysql:
+  host: 127.0.0.1
+  port: 3306
+  database: fxchat
+  username: root
+  password: ""
+  use-ssl: false

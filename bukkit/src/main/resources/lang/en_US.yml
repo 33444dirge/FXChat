@@ -1,0 +1,178 @@
+command:
+  sudo-usage: "<yellow>Usage: /fxc sudo <player> <message> [channel] [private player]</yellow>"
+  sudo-only-player: "<red>Only players can use sudo because the executor's channel is required.</red>"
+  sudo-target-not-found: "<red>The target must be an online player on this server.</red>"
+  sudo-private-target-required: "<yellow>A private player is required when using the private channel. Usage: /fxc sudo <player> <message> <private-channel> <private-player></yellow>"
+  help: |-
+    <aqua>FXChat commands:</aqua>
+    <gray>/fxchat channel [name] <player> - Select a chat channel (private requires a player)</gray>
+    <gray>/msg [player] [message] - Send a private message</gray>
+    <gray>/reply [message] - Reply to the last private message</gray>
+    <gray>/fxchat spy [on|off] - Toggle private message spy mode</gray>
+    <gray>/mute [player] [reason] [duration] - Mute a player</gray>
+    <gray>/fxchat sudo [player] [message] [channel] [private player] - Make a player send a message</gray>
+    <gray>/fxchat view [item|inventory|enderchest|container] [token] - View a showcase</gray>
+    <gray>/fxchat reload - Reload configuration</gray>
+    <gray>/fxchat version - Show version</gray>
+  version: "<gray>FXChat version: <white>{version}</white></gray>"
+  unknown: "<red>Unknown subcommand. Use /fxchat help for help.</red>"
+  no-permission: "<red>You do not have permission to run this command.</red>"
+  reload-started: "<yellow>Reloading FXChat configuration...</yellow>"
+  reload-success: "<green>FXChat configuration reloaded.</green>"
+  reload-failed: "<red>FXChat reload failed; the old configuration is still active.</red>"
+  only-player: "<red>Only players can select a chat channel.</red>"
+  channels: "<gray>Available channels: <white>{channels}</white></gray>"
+  channel-not-found: "<red>That chat channel does not exist.</red>"
+  channel-no-permission: "<red>You do not have permission to use that chat channel.</red>"
+  channel-selected: "<green>Chat channel set to <white>{channel}</white>.</green>"
+  channel-already-selected:
+    - type: actionbar
+      text: "<yellow>You are already in the <white>{channel}</white> chat channel.</yellow>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+  view-usage: "<yellow>Usage: /fxchat view [item|inventory|enderchest|container] [token]</yellow>"
+
+chat:
+  no-permission: "<red>You do not have permission to chat.</red>"
+  channel-no-permission: "<red>You do not have permission to use this channel.</red>"
+  channel-not-found: "<red>That chat channel does not exist.</red>"
+  message-too-long: "<red>Your message is too long.</red>"
+  slow-down: "<yellow>Please slow down.</yellow>"
+  repeated-message: "<yellow>Please do not repeat the same message.</yellow>"
+  no-one-heard:
+    - type: actionbar
+      text: "<gray>No one nearby heard your message.</gray>"
+
+private:
+  usage: "<yellow>Usage: /msg <player> [message]</yellow>"
+  channel-usage:
+    - type: actionbar
+      text: "<red>Usage: /fxc channel 私聊 <player></red>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+  player-required:
+    - type: actionbar
+      text: "<red>You must specify a private-message player. Usage: /msg <player> [message]</red>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+  channel-entered: "<green>Private channel with <white>{player}</white> selected. Send chat messages directly.</green>"
+  reply-usage: "<yellow>Usage: /reply <message></yellow>"
+  only-player: "<red>Only players can send private messages.</red>"
+  spy-only-player: "<red>Only players can use private message spy mode.</red>"
+  spy-no-permission: "<red>You do not have private message spy permission.</red>"
+  spy-usage: "<yellow>Usage: /fxchat spy [on|off]</yellow>"
+  spy-prefix: "<dark_gray>[Spy]</dark_gray> <gold>{sender}</gold> <green>-></green> <aqua>{target}</aqua><gray>: </gray>"
+  spy-enabled:
+    - type: actionbar
+      text: "<green>Private message spy mode enabled.</green>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_PLING"
+      volume: 1
+      pitch: 1.2
+  spy-disabled:
+    - type: actionbar
+      text: "<yellow>Private message spy mode disabled.</yellow>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+  player-not-found:
+    - type: actionbar
+      text: "<red>That player is not online.</red>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+  self:
+    - type: actionbar
+      text: "<red>You cannot send a private message to yourself.</red>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+  no-reply:
+    - type: actionbar
+      text: "<red>You have no one to reply to.</red>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+
+mute:
+  usage: "<yellow>Usage: /mute <player> <reason> <duration></yellow>"
+  no-permission: "<red>You do not have permission to mute players.</red>"
+  player-not-found: "<red>That player is not online.</red>"
+  self: "<red>You cannot mute yourself.</red>"
+  reason-too-long: "<red>The mute reason cannot exceed 512 characters.</red>"
+  invalid-duration: "<red>Invalid duration. Examples: 30s, 10m, 2h, 1d, or permanent.</red>"
+  database-error: "<red>Could not save the mute. Check the database configuration.</red>"
+  success: "<green>Muted <white>{player}</white> for <white>{duration}</white>. Reason: <white>{reason}</white></green>"
+  muted:
+    - type: actionbar
+      text: "<red>You are muted. Reason: <white>{reason}</white>; remaining: <white>{remaining}</white></red>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+
+function:
+  mention-format: "<dark_green>[@<green>{player}</green>]</dark_green>"
+  mention-hover: "<gray>Click to send a private message</gray>"
+  mention-all-format: "<dark_green>[@<green>everyone</green>]</dark_green>"
+  mention-all-hover: "<gray>All online players were notified</gray>"
+  mention-notify:
+    - type: actionbar
+      text: "<light_purple><green>{player}</green> mentioned you in chat.</light_purple>"
+    - type: sound
+      sound: "BLOCK_ANVIL_LAND"
+      volume: 1
+      pitch: 2
+  mention-cooldown:
+    - type: actionbar
+      text: "<yellow>Wait {seconds} seconds before mentioning another player.</yellow>"
+  mention-all-cooldown:
+    - type: actionbar
+      text: "<yellow>Wait {seconds} seconds before mentioning everyone.</yellow>"
+  item-format: "<dark_gray>[<aqua>{item}</aqua> x{amount}]</dark_gray>"
+  item-hover: "<gray>{item}, amount: {amount}</gray>"
+  item-air: "<gray>[Air]</gray>"
+  item-title: "{player}'s item"
+  item-unavailable: "<red>This item showcase has expired or does not exist.</red>"
+  item-cooldown:
+    - type: actionbar
+      text: "<yellow>Wait {seconds} seconds before showing another item.</yellow>"
+  inventory-format: "<dark_gray>[<aqua>{player}'s inventory</aqua>]</dark_gray>"
+  inventory-hover: "<gray>Click to view {player}'s inventory</gray>"
+  inventory-title: "{player}'s inventory"
+  inventory-unavailable: "<red>This inventory showcase has expired or does not exist.</red>"
+  inventory-cooldown:
+    - type: actionbar
+      text: "<yellow>Wait {seconds} seconds before showing another inventory.</yellow>"
+  enderchest-format: "<dark_gray>[<aqua>{player}'s ender chest</aqua>]</dark_gray>"
+  enderchest-hover: "<gray>Click to view {player}'s ender chest</gray>"
+  enderchest-title: "{player}'s ender chest"
+  enderchest-unavailable: "<red>This ender chest showcase has expired or does not exist.</red>"
+  enderchest-cooldown:
+    - type: actionbar
+      text: "<yellow>Wait {seconds} seconds before showing another ender chest.</yellow>"
+  container-format: "<dark_gray>[<aqua>{container}</aqua>]</dark_gray>"
+  container-hover: "<gray>Click to view the contents of {container}</gray>"
+  container-title: "{container} container"
+  container-unknown: "<gray>Unknown</gray>"
+  container-unavailable: "<red>This container showcase has expired or does not exist.</red>"
+  container-no-target:
+    - type: actionbar
+      text: "<yellow>Aim at a container within {range} blocks.</yellow>"
+    - type: sound
+      sound: "BLOCK_NOTE_BLOCK_BASS"
+      volume: 1
+      pitch: 0.8
+  container-cooldown:
+    - type: actionbar
+      text: "<yellow>Wait {seconds} seconds before showing another container.</yellow>"

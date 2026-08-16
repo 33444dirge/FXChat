@@ -1,0 +1,43 @@
+# TrChat-compatible custom chat functions.
+# {0} is replaced with the value captured from the message.
+
+Custom:
+  shareUrl:
+    enabled: true
+    priority: 100
+    pattern: '(https?|ftp):\/\/([a-zA-Z0-9.-]+(:[0-9]+)?)(\/[^?#]*)?(\?[^#]*)?(#.*)?'
+    display:
+      text: '<dark_gray>[<white><bold>网站</bold></white><dark_gray>]'
+      hover:
+        - ''
+        - '<aqua>网站: <white>{0}</white></aqua>'
+        - ''
+        - '<gray>点击打开</gray>'
+      url: '{0}'
+
+  shareQQ:
+    enabled: true
+    priority: 100
+    pattern: 'QQ( )?[1-9]([0-9]{5,11})'
+    text-filter: '[1-9]([0-9]{5,11})'
+    display:
+      text: '<dark_gray>[<aqua><bold>QQ</bold></aqua><dark_gray>]'
+      hover:
+        - ''
+        - '<aqua>QQ: <white>{0}</white></aqua>'
+        - ''
+        - '<gray>点击打开 QQ 对话</gray>'
+      url: 'https://wpa.qq.com/msgrd?v=3&uin={0}&site=qq&menu=yes'
+
+  shareBilibili:
+    enabled: true
+    priority: 100
+    pattern: 'BV( )?.{10}'
+    text-filter: '.{12}'
+    display:
+      text: '<dark_gray>[<white><bold>Bilibili</bold></white><dark_gray>]'
+      hover:
+        - ''
+        - '<gray>点击打开 Bilibili 视频</gray>'
+        - '<aqua>BV号: <white>{0}</white></aqua>'
+      url: 'https://www.bilibili.com/video/{0}'
