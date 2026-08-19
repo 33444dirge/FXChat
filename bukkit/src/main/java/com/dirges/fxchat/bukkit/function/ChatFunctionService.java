@@ -33,6 +33,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
+import org.bukkit.inventory.meta.BlockStateMeta;
+import org.bukkit.block.ShulkerBox;
 import org.bukkit.util.RayTraceResult;
 
 import java.util.ArrayList;
@@ -166,6 +168,23 @@ public final class ChatFunctionService implements AutoCloseable {
             Inventory inventory = createShowcaseInventory(holder, snapshot);
             holder.bind(inventory);
             populateShowcase(inventory, snapshot);
+            player.openInventory(inventory);
+        });
+    }
+
+    public void openShulkerPreview(Player player, ItemStack source) {
+        if (source == null || !source.getType().name().endsWith("SHULKER_BOX")
+                || !(source.getItemMeta() instanceof BlockStateMeta meta)
+                || !(meta.getBlockState() instanceof ShulkerBox shulkerBox)) {
+            return;
+        }
+        ItemStack[] contents = shulkerBox.getInventory().getContents();
+        scheduler.runAtEntity(player, () -> {
+            if (!player.isOnline()) return;
+            ShowcaseStore.Holder holder = new ShowcaseStore.Holder();
+            Inventory inventory = Bukkit.createInventory(holder, 27, Component.text("潜影盒预览"));
+            holder.bind(inventory);
+            populateEnderChestShowcase(inventory, contents);
             player.openInventory(inventory);
         });
     }

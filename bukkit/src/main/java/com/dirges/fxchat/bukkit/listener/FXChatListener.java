@@ -4,6 +4,7 @@ import com.dirges.fxchat.bukkit.chat.ChatService;
 import com.dirges.fxchat.bukkit.chat.ChatFilterService;
 import com.dirges.fxchat.bukkit.chat.MentionCompletionService;
 import com.dirges.fxchat.bukkit.function.ShowcaseStore;
+import com.dirges.fxchat.bukkit.function.ChatFunctionService;
 import com.dirges.fxchat.bukkit.hook.BlockLockerHook;
 import com.dirges.fxchat.bukkit.moderation.IgnoreService;
 import com.dirges.fxchat.bukkit.player.PlayerSessionManager;
@@ -33,6 +34,7 @@ public final class FXChatListener implements Listener {
     private final ChatFilterService filters;
     private final PlayerSessionManager sessions;
     private final MentionCompletionService mentionCompletions;
+    private final ChatFunctionService functions;
     private final BlockLockerHook blockLocker;
     private final IgnoreService ignoreService;
     private final MessageRenderer renderer;
@@ -43,6 +45,7 @@ public final class FXChatListener implements Listener {
             ChatFilterService filters,
             PlayerSessionManager sessions,
             MentionCompletionService mentionCompletions,
+            ChatFunctionService functions,
             BlockLockerHook blockLocker,
             IgnoreService ignoreService,
             MessageRenderer renderer
@@ -52,6 +55,7 @@ public final class FXChatListener implements Listener {
         this.filters = filters;
         this.sessions = sessions;
         this.mentionCompletions = mentionCompletions;
+        this.functions = functions;
         this.blockLocker = blockLocker;
         this.ignoreService = ignoreService;
         this.renderer = renderer;
@@ -117,6 +121,10 @@ public final class FXChatListener implements Listener {
         }
         if (event.getView().getTopInventory().getHolder() instanceof ShowcaseStore.Holder) {
             event.setCancelled(true);
+            if (event.getClickedInventory() == event.getView().getTopInventory()
+                    && event.getWhoClicked() instanceof Player player) {
+                functions.openShulkerPreview(player, event.getCurrentItem());
+            }
         }
     }
 
