@@ -13,6 +13,7 @@ import org.bukkit.entity.Player;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.EnumSet;
 
 public final class MessageRenderer {
     private static final String PLAYER_TAG = "fxchat_player";
@@ -74,13 +75,14 @@ public final class MessageRenderer {
         String result = message == null ? "" : message;
         boolean legacy = hasColorPermission(player, target, "legacy");
         boolean miniMessage = hasColorPermission(player, target, "minimessages");
-        if (!miniMessage) {
+        if (miniMessage) {
+            result = MessageColorParser.filterMiniMessage(result, miniFeatures(player, target));
+        } else {
             result = this.miniMessage.escapeTags(result);
         }
-        if (legacy) {
-            return MessageColorParser.convert(result);
-        }
-        return MessageColorParser.neutralizeSectionSigns(result);
+        EnumSet<MessageColorParser.LegacyFeature> legacyFeatures = legacyFeatures(player, target);
+        result = MessageColorParser.convert(result, legacyFeatures);
+        return legacy ? result : MessageColorParser.neutralizeSectionSigns(result);
     }
 
     public boolean hasAnyColorPermission(Player player, ColorTarget target) {
@@ -89,7 +91,30 @@ public final class MessageRenderer {
 
     public boolean hasColorPermission(Player player, ColorTarget target, String syntax) {
         String base = "fxchat.color." + target.permissionSegment();
-        return player.hasPermission(base + ".*") || player.hasPermission(base + "." + syntax);
+        int separator = syntax.indexOf('.');
+        String family = separator < 0 ? syntax : syntax.substring(0, separator);
+        return player.hasPermission(base + ".*")
+                || player.hasPermission(base + "." + family)
+                || player.hasPermission(base + "." + family + ".*")
+                || player.hasPermission(base + "." + syntax);
+    }
+
+    private EnumSet<MessageColorParser.LegacyFeature> legacyFeatures(Player player, ColorTarget target) {
+        EnumSet<MessageColorParser.LegacyFeature> result = EnumSet.noneOf(MessageColorParser.LegacyFeature.class);
+        for (MessageColorParser.LegacyFeature feature : MessageColorParser.LegacyFeature.values()) {
+            if (hasColorPermission(player, target, "legacy." + feature.name().toLowerCase())) result.add(feature);
+        }
+        return result;
+    }
+
+    private EnumSet<MessageColorParser.MiniFeature> miniFeatures(Player player, ColorTarget target) {
+        EnumSet<MessageColorParser.MiniFeature> result = EnumSet.noneOf(MessageColorParser.MiniFeature.class);
+        for (MessageColorParser.MiniFeature feature : MessageColorParser.MiniFeature.values()) {
+            if (hasColorPermission(player, target, "minimessages." + feature.name().toLowerCase().replace('_', '-'))) {
+                result.add(feature);
+            }
+        }
+        return result;
     }
 
     private PreparedBody prepareBody(Player player, String message) {
