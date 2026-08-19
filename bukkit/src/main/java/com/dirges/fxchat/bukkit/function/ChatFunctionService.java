@@ -499,8 +499,39 @@ public final class ChatFunctionService implements AutoCloseable {
 
     private String customTemplate(Player sender, String template, String value) {
         String expanded = papi == null ? template : papi.expand(sender, template == null ? "" : template);
-        String normalized = MessageColorParser.convert(expanded == null ? "" : expanded);
+        String normalized = convertLegacyOutsideMiniMessageTags(expanded == null ? "" : expanded);
         return normalized.replace("{0}", miniMessage.escapeTags(value == null ? "" : value));
+    }
+
+    private static String convertLegacyOutsideMiniMessageTags(String source) {
+        StringBuilder result = new StringBuilder(source.length());
+        int textStart = 0;
+        for (int index = 0; index < source.length(); index++) {
+            if (source.charAt(index) != '<') continue;
+            int end = miniMessageTagEnd(source, index + 1);
+            if (end < 0) break;
+            result.append(MessageColorParser.convert(source.substring(textStart, index)));
+            result.append(source, index, end + 1);
+            textStart = end + 1;
+            index = end;
+        }
+        result.append(MessageColorParser.convert(source.substring(textStart)));
+        return result.toString();
+    }
+
+    private static int miniMessageTagEnd(String source, int start) {
+        char quote = 0;
+        for (int index = start; index < source.length(); index++) {
+            char character = source.charAt(index);
+            if (quote != 0) {
+                if (character == quote) quote = 0;
+            } else if (character == '\'' || character == '"') {
+                quote = character;
+            } else if (character == '>') {
+                return index;
+            }
+        }
+        return -1;
     }
 
     private Component deserializeTemplate(String source) {
