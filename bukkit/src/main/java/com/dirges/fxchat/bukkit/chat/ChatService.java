@@ -8,6 +8,7 @@ import com.dirges.fxchat.bukkit.function.ChatFunctionService;
 import com.dirges.fxchat.bukkit.hook.CustomNameplatesHook;
 import com.dirges.fxchat.bukkit.moderation.MuteRecord;
 import com.dirges.fxchat.bukkit.moderation.MuteService;
+import com.dirges.fxchat.bukkit.moderation.PrivateSpyService;
 import com.dirges.fxchat.bukkit.moderation.IgnoreService;
 import com.dirges.fxchat.bukkit.player.PlayerSessionManager;
 import com.dirges.fxchat.bukkit.player.PlayerSnapshot;
@@ -50,7 +51,7 @@ public final class ChatService implements AutoCloseable {
     private final ConcurrentHashMap<UUID, Long> cooldowns = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, LastMessage> lastMessages = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, ReplyTarget> replyTargets = new ConcurrentHashMap<>();
-    private final Set<UUID> privateSpies = ConcurrentHashMap.newKeySet();
+    private final PrivateSpyService privateSpies;
     private final AtomicBoolean closed = new AtomicBoolean();
 
     private volatile Settings settings;
@@ -68,6 +69,7 @@ public final class ChatService implements AutoCloseable {
             Consumer<Player> leaveExternalChat,
             CustomNameplatesHook customNameplates,
             MuteService muteService,
+            PrivateSpyService privateSpies,
             IgnoreService ignoreService,
             ChatFilterService filters
     ) {
@@ -82,6 +84,7 @@ public final class ChatService implements AutoCloseable {
         this.transport = transport;
         this.customNameplates = customNameplates;
         this.muteService = muteService;
+        this.privateSpies = privateSpies;
         this.ignoreService = ignoreService;
         this.filters = filters;
         this.leaveExternalChat = leaveExternalChat;
@@ -92,20 +95,11 @@ public final class ChatService implements AutoCloseable {
     }
 
     public boolean togglePrivateSpy(UUID playerId) {
-        if (privateSpies.remove(playerId)) {
-            return false;
-        }
-        privateSpies.add(playerId);
-        return true;
+        return privateSpies.toggle(playerId);
     }
 
     public boolean setPrivateSpy(UUID playerId, boolean enabled) {
-        if (enabled) {
-            privateSpies.add(playerId);
-        } else {
-            privateSpies.remove(playerId);
-        }
-        return enabled;
+        return privateSpies.set(playerId, enabled);
     }
 
     public void sendPrivateMessage(Player sender, String targetName, String rawMessage) {
@@ -524,7 +518,6 @@ public final class ChatService implements AutoCloseable {
         lastMessages.remove(playerId);
         functions.removePlayer(playerId);
         replyTargets.remove(playerId);
-        privateSpies.remove(playerId);
         replyTargets.entrySet().removeIf(entry -> entry.getValue().id().equals(playerId));
     }
 
@@ -534,7 +527,6 @@ public final class ChatService implements AutoCloseable {
             cooldowns.clear();
             lastMessages.clear();
             replyTargets.clear();
-            privateSpies.clear();
             seenMessages.clear();
             leaveExternalChat = player -> { };
         }
@@ -648,7 +640,7 @@ public final class ChatService implements AutoCloseable {
         if (privateSpies.isEmpty()) {
             return;
         }
-        for (UUID spyId : privateSpies) {
+        for (UUID spyId : privateSpies.enabled()) {
             if (spyId.equals(senderId) || spyId.equals(targetId)) {
                 continue;
             }

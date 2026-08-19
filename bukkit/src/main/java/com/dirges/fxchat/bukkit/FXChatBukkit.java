@@ -21,6 +21,7 @@ import com.dirges.fxchat.bukkit.hook.LandsHook;
 import com.dirges.fxchat.bukkit.listener.FXChatListener;
 import com.dirges.fxchat.bukkit.moderation.MuteRecord;
 import com.dirges.fxchat.bukkit.moderation.MuteService;
+import com.dirges.fxchat.bukkit.moderation.PrivateSpyService;
 import com.dirges.fxchat.bukkit.moderation.IgnoreService;
 import com.dirges.fxchat.bukkit.player.PlayerSessionManager;
 import com.dirges.fxchat.bukkit.proxy.BukkitProxyTransport;
@@ -52,6 +53,7 @@ public final class FXChatBukkit extends JavaPlugin {
     private ChatService chatService;
     private ChatFilterService chatFilters;
     private MuteService muteService;
+    private PrivateSpyService privateSpyService;
     private IgnoreService ignoreService;
     private MentionCompletionService mentionCompletions;
     private BukkitProxyTransport transport;
@@ -144,13 +146,16 @@ public final class FXChatBukkit extends JavaPlugin {
             }
         }
         sessions = new PlayerSessionManager();
+        DatabaseSettings databaseSettings = DatabaseSettings.load(new java.io.File(getDataFolder(), "database.yml"), getLogger()::warning);
         muteService = new MuteService(
                 getDataFolder(),
-                DatabaseSettings.load(new java.io.File(getDataFolder(), "database.yml"), getLogger()::warning),
+                databaseSettings,
                 scheduler,
                 getLogger()::warning
         );
         muteService.start();
+        privateSpyService = new PrivateSpyService(getDataFolder(), databaseSettings, scheduler, getLogger()::warning);
+        privateSpyService.start();
         ignoreService = new IgnoreService(getDataFolder(), scheduler, getLogger()::warning);
         FunctionSettings functionSettings = FunctionSettings.load(
                 new java.io.File(getDataFolder(), "functions.yml"), getLogger()::warning);
@@ -206,7 +211,7 @@ public final class FXChatBukkit extends JavaPlugin {
         });
         chatService = new ChatService(
                 this, scheduler, messages, settings, sessions, renderer, functions, scripts, transport,
-                leaveExternalChat, customNameplates, muteService, ignoreService, chatFilters);
+                leaveExternalChat, customNameplates, muteService, privateSpyService, ignoreService, chatFilters);
         serviceReference.set(chatService);
         transport.enable();
 
@@ -299,6 +304,9 @@ public final class FXChatBukkit extends JavaPlugin {
         }
         if (muteService != null) {
             muteService.close();
+        }
+        if (privateSpyService != null) {
+            privateSpyService.close();
         }
         if (ignoreService != null) {
             ignoreService.close();
