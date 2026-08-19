@@ -7,31 +7,31 @@ layout:
 
 filler:
   material: GRAY_STAINED_GLASS_PANE
-  name: ' '
+  name: '<!italic> '
   lore: []
 entry:
   material: NAME_TAG
-  name: '<red>已屏蔽: <white>{player}'
+  name: '<!italic><red>已屏蔽: <white>{player}'
   lore:
-    - '<gray>蹲下并右键取消屏蔽'
+    - '<!italic><gray>Shift + 右键取消屏蔽'
 add:
   material: ANVIL
-  name: '<green>添加屏蔽玩家'
+  name: '<!italic><green>添加屏蔽玩家'
   lore:
-    - '<gray>点击输入玩家 ID'
+    - '<!italic><gray>点击输入玩家 ID'
 previous:
   material: ARROW
-  name: '<yellow>上一页'
+  name: '<!italic><yellow>上一页'
   lore: []
   disabled:
     material: BARRIER
-    name: '<gray>没有上一页'
+    name: '<!italic><gray>没有上一页'
     lore: []
 next:
   material: ARROW
-  name: '<yellow>下一页'
+  name: '<!italic><yellow>下一页'
   lore: []
   disabled:
     material: BARRIER
-    name: '<gray>没有下一页'
+    name: '<!italic><gray>没有下一页'
     lore: []

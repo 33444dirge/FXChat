@@ -7,6 +7,7 @@ import io.papermc.paper.registry.data.dialog.DialogInstancesProvider;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickCallback;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
@@ -140,7 +141,10 @@ public final class IgnoreService implements AutoCloseable {
 
     private static ItemStack item(ItemSettings settings, int page, int pages, String player) {
         ItemStack item = new ItemStack(settings.material()); ItemMeta meta = item.getItemMeta();
-        meta.displayName(component(settings.name(), page, pages, player)); meta.lore(settings.lore().stream().map(line -> component(line, page, pages, player)).toList()); item.setItemMeta(meta); return item;
+        meta.displayName(component(settings.name(), page, pages, player).decoration(TextDecoration.ITALIC, false));
+        meta.lore(settings.lore().stream()
+                .map(line -> component(line, page, pages, player).decoration(TextDecoration.ITALIC, false)).toList());
+        item.setItemMeta(meta); return item;
     }
     private static Component component(String text, int page, int pages, String player) {
         return MINI_MESSAGE.deserialize(text.replace("{page}", String.valueOf(page + 1)).replace("{pages}", String.valueOf(pages)).replace("{player}", player));
