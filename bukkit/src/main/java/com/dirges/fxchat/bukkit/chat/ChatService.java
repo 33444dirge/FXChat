@@ -398,7 +398,7 @@ public final class ChatService implements AutoCloseable {
             return;
         }
 
-        message = filters.filterChatPreservingMentions(message, sessions.onlineNameIndex().keySet());
+        message = filters.filterChatPreservingPlayerNames(message, sessions.onlineNameIndex().keySet());
         if (!tryRecordMessage(player.getUniqueId(), message, current.antiRepeatWindowMillis(),
                 current.antiRepeatSimilarity())) {
             messages.send(player, "chat.repeated-message");
@@ -576,7 +576,7 @@ public final class ChatService implements AutoCloseable {
             messages.send(sender, "chat.message-too-long");
             return;
         }
-        String message = filters.filterChatPreservingMentions(rawMessage, sessions.onlineNameIndex().keySet());
+        String message = filters.filterChatPreservingPlayerNames(rawMessage, sessions.onlineNameIndex().keySet());
         if (message.isBlank()) {
             return;
         }

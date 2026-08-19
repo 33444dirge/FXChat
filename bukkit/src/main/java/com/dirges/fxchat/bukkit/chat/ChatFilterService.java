@@ -74,8 +74,8 @@ public final class ChatFilterService implements AutoCloseable {
         return targets.chat() ? filter(message) : message;
     }
 
-    /** Filters chat while preserving complete @player-name mention tokens for the mention resolver. */
-    public String filterChatPreservingMentions(String message, Collection<String> playerNames) {
+    /** Filters chat while preserving complete online player IDs for the mention resolver. */
+    public String filterChatPreservingPlayerNames(String message, Collection<String> playerNames) {
         if (!targets.chat() || message == null || message.isEmpty() || playerNames == null || playerNames.isEmpty()) {
             return filterChat(message);
         }
@@ -88,7 +88,7 @@ public final class ChatFilterService implements AutoCloseable {
         if (names.isBlank()) {
             return filterChat(message);
         }
-        Matcher mentions = Pattern.compile("@(?:" + names + ")(?![A-Za-z0-9_])",
+        Matcher mentions = Pattern.compile("(?<![A-Za-z0-9_])(?:" + names + ")(?![A-Za-z0-9_])",
                 Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE).matcher(message);
         if (!mentions.find()) {
             return filterChat(message);
