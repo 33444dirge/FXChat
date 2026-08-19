@@ -50,12 +50,7 @@ public record CustomFunctionSettings(List<Rule> rules) {
                         section.getInt("priority", 100),
                         pattern,
                         textFilter,
-                        new Display(
-                                display.getString("text", "{0}"),
-                                strings(display),
-                                display.getString("url", ""),
-                                display.getString("copy", "")
-                        )
+                        new Display(display.getString("text", "{0}"))
                 ));
             } catch (RuntimeException exception) {
                 warning.accept("Ignored invalid custom function " + id + ": " + exception.getMessage());
@@ -63,15 +58,6 @@ public record CustomFunctionSettings(List<Rule> rules) {
         }
         rules.sort(Comparator.comparingInt(Rule::priority));
         return new CustomFunctionSettings(rules);
-    }
-
-    private static List<String> strings(ConfigurationSection section) {
-        List<String> result = section.getStringList("hover");
-        if (!result.isEmpty()) {
-            return List.copyOf(result);
-        }
-        String value = section.getString("hover", "");
-        return value.isBlank() ? List.of() : List.of(value);
     }
 
     public record Rule(
@@ -84,14 +70,6 @@ public record CustomFunctionSettings(List<Rule> rules) {
     ) {
     }
 
-    public record Display(
-            String text,
-            List<String> hover,
-            String url,
-            String copy
-    ) {
-        public Display {
-            hover = List.copyOf(hover);
-        }
+    public record Display(String text) {
     }
 }

@@ -463,35 +463,13 @@ public final class ChatFunctionService implements AutoCloseable {
             CustomFunctionSettings.Display display,
             String value
     ) {
-        Component component = deserializeTemplate(customTemplate(sender, display.text(), value));
-        if (!display.hover().isEmpty()) {
-            String hover = display.hover().stream()
-                    .map(line -> customTemplate(sender, line, value))
-                    .reduce((left, right) -> left + "\n" + right)
-                    .orElse("");
-            component = component.hoverEvent(HoverEvent.showText(deserializeTemplate(hover)));
-        }
-        String url = rawTemplate(sender, display.url(), value);
-        if (!url.isBlank()) {
-            component = component.clickEvent(ClickEvent.openUrl(url));
-        } else {
-            String copy = rawTemplate(sender, display.copy(), value);
-            if (!copy.isBlank()) {
-                component = component.clickEvent(ClickEvent.copyToClipboard(copy));
-            }
-        }
-        return component;
+        return deserializeTemplate(customTemplate(sender, display.text(), value));
     }
 
     private String customTemplate(Player sender, String template, String value) {
         String expanded = papi == null ? template : papi.expand(sender, template == null ? "" : template);
         String normalized = MessageColorParser.convert(expanded == null ? "" : expanded);
         return normalized.replace("{0}", miniMessage.escapeTags(value));
-    }
-
-    private String rawTemplate(Player sender, String template, String value) {
-        String expanded = papi == null ? template : papi.expand(sender, template == null ? "" : template);
-        return (expanded == null ? "" : expanded).replace("{0}", value);
     }
 
     private Component deserializeTemplate(String source) {
