@@ -17,6 +17,8 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -70,6 +72,36 @@ public final class ChatFilterService implements AutoCloseable {
 
     public String filterChat(String message) {
         return targets.chat() ? filter(message) : message;
+    }
+
+    /** Filters chat while preserving complete @player-name mention tokens for the mention resolver. */
+    public String filterChatPreservingMentions(String message, Collection<String> playerNames) {
+        if (!targets.chat() || message == null || message.isEmpty() || playerNames == null || playerNames.isEmpty()) {
+            return filterChat(message);
+        }
+        String names = playerNames.stream()
+                .filter(name -> name != null && !name.isBlank())
+                .sorted(Comparator.comparingInt(String::length).reversed())
+                .map(Pattern::quote)
+                .reduce((left, right) -> left + "|" + right)
+                .orElse("");
+        if (names.isBlank()) {
+            return filterChat(message);
+        }
+        Matcher mentions = Pattern.compile("@(?:" + names + ")(?![A-Za-z0-9_])",
+                Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE).matcher(message);
+        if (!mentions.find()) {
+            return filterChat(message);
+        }
+        StringBuilder result = new StringBuilder(message.length());
+        int end = 0;
+        do {
+            result.append(filter(message.substring(end, mentions.start())));
+            result.append(mentions.group());
+            end = mentions.end();
+        } while (mentions.find());
+        result.append(filter(message.substring(end)));
+        return result.toString();
     }
 
     public String filterSign(String message) {
