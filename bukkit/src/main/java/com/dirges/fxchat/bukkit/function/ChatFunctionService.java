@@ -489,17 +489,13 @@ public final class ChatFunctionService implements AutoCloseable {
             CustomFunctionSettings.Display display,
             String value
     ) {
-        String template = customTemplate(sender, display.text()).replace("{0}", "<fx_custom_value>");
-        try {
-            return miniMessage.deserialize(template, Placeholder.unparsed("fx_custom_value", value));
-        } catch (RuntimeException exception) {
-            return Component.text(template.replace("<fx_custom_value>", value));
-        }
+        return deserializeTemplate(customTemplate(sender, display.text(), value));
     }
 
-    private String customTemplate(Player sender, String template) {
+    private String customTemplate(Player sender, String template, String value) {
         String expanded = papi == null ? template : papi.expand(sender, template == null ? "" : template);
-        return MessageColorParser.convert(expanded == null ? "" : expanded);
+        String normalized = MessageColorParser.convert(expanded == null ? "" : expanded);
+        return normalized.replace("{0}", miniMessage.escapeTags(value == null ? "" : value));
     }
 
     private Component deserializeTemplate(String source) {
