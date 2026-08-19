@@ -4,6 +4,7 @@ import com.dirges.fxchat.bukkit.config.FunctionSettings;
 import com.dirges.fxchat.bukkit.config.CustomFunctionSettings;
 import com.dirges.fxchat.bukkit.config.MessageService;
 import com.dirges.fxchat.bukkit.hook.CraftEngineHook;
+import com.dirges.fxchat.bukkit.hook.PapiHook;
 import com.dirges.fxchat.bukkit.player.PlayerSessionManager;
 import com.dirges.fxchat.bukkit.scheduler.SchedulerFacade;
 import com.dirges.fxchat.bukkit.text.MessageColorParser;
@@ -54,6 +55,7 @@ public final class ChatFunctionService implements AutoCloseable {
     private final MessageService messages;
     private final ShowcaseStore showcases;
     private final CraftEngineHook craftEngine;
+    private final PapiHook papi;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final ConcurrentHashMap<UUID, ConcurrentHashMap<String, Long>> cooldowns = new ConcurrentHashMap<>();
     private final Object mentionPatternLock = new Object();
@@ -68,6 +70,7 @@ public final class ChatFunctionService implements AutoCloseable {
             MessageService messages,
             ShowcaseStore showcases,
             CraftEngineHook craftEngine,
+            PapiHook papi,
             FunctionSettings settings,
             CustomFunctionSettings customFunctions
     ) {
@@ -76,6 +79,7 @@ public final class ChatFunctionService implements AutoCloseable {
         this.messages = messages;
         this.showcases = showcases;
         this.craftEngine = craftEngine;
+        this.papi = papi;
         this.state = new FunctionState(settings, FunctionPatterns.create(settings));
         this.customFunctions = customFunctions;
     }
@@ -103,7 +107,7 @@ public final class ChatFunctionService implements AutoCloseable {
 
         result = replaceMentions(sender, current.mention(), result, tokens, mentionedPlayers);
 
-        result = replaceCustomFunctions(customFunctions, result, tokens);
+        result = replaceCustomFunctions(sender, customFunctions, result, tokens);
         result = replaceSimpleShowcase(sender, current.inventoryShow(), currentPatterns.inventory(), result, tokens, wireShowcases,
                 ShowcaseStore.Kind.INVENTORY);
         result = replaceSimpleShowcase(sender, current.enderChestShow(), currentPatterns.enderChest(), result, tokens, wireShowcases,
@@ -409,6 +413,7 @@ public final class ChatFunctionService implements AutoCloseable {
     }
 
     private String replaceCustomFunctions(
+            Player sender,
             CustomFunctionSettings config,
             String source,
             List<Token> tokens
@@ -418,12 +423,13 @@ public final class ChatFunctionService implements AutoCloseable {
             if (!rule.enabled()) {
                 continue;
             }
-            result = replaceCustomFunction(rule, result, tokens);
+            result = replaceCustomFunction(sender, rule, result, tokens);
         }
         return result;
     }
 
     private String replaceCustomFunction(
+            Player sender,
             CustomFunctionSettings.Rule rule,
             String source,
             List<Token> tokens
@@ -444,7 +450,7 @@ public final class ChatFunctionService implements AutoCloseable {
                     value = filter.group();
                 }
             }
-            String key = addToken(tokens, customComponent(rule.display(), value));
+            String key = addToken(tokens, customComponent(sender, rule.display(), value));
             output.append('<').append(key).append('>');
             end = matcher.end();
         } while (matcher.find());
@@ -452,20 +458,24 @@ public final class ChatFunctionService implements AutoCloseable {
         return output.toString();
     }
 
-    private Component customComponent(CustomFunctionSettings.Display display, String value) {
-        Component component = deserializeTemplate(customTemplate(display.text(), value));
+    private Component customComponent(
+            Player sender,
+            CustomFunctionSettings.Display display,
+            String value
+    ) {
+        Component component = deserializeTemplate(customTemplate(sender, display.text(), value));
         if (!display.hover().isEmpty()) {
             String hover = display.hover().stream()
-                    .map(line -> customTemplate(line, value))
+                    .map(line -> customTemplate(sender, line, value))
                     .reduce((left, right) -> left + "\n" + right)
                     .orElse("");
             component = component.hoverEvent(HoverEvent.showText(deserializeTemplate(hover)));
         }
-        String url = rawTemplate(display.url(), value);
+        String url = rawTemplate(sender, display.url(), value);
         if (!url.isBlank()) {
             component = component.clickEvent(ClickEvent.openUrl(url));
         } else {
-            String copy = rawTemplate(display.copy(), value);
+            String copy = rawTemplate(sender, display.copy(), value);
             if (!copy.isBlank()) {
                 component = component.clickEvent(ClickEvent.copyToClipboard(copy));
             }
@@ -473,13 +483,15 @@ public final class ChatFunctionService implements AutoCloseable {
         return component;
     }
 
-    private String customTemplate(String template, String value) {
-        String normalized = MessageColorParser.convert(template == null ? "" : template);
+    private String customTemplate(Player sender, String template, String value) {
+        String expanded = papi == null ? template : papi.expand(sender, template == null ? "" : template);
+        String normalized = MessageColorParser.convert(expanded == null ? "" : expanded);
         return normalized.replace("{0}", miniMessage.escapeTags(value));
     }
 
-    private static String rawTemplate(String template, String value) {
-        return (template == null ? "" : template).replace("{0}", value);
+    private String rawTemplate(Player sender, String template, String value) {
+        String expanded = papi == null ? template : papi.expand(sender, template == null ? "" : template);
+        return (expanded == null ? "" : expanded).replace("{0}", value);
     }
 
     private Component deserializeTemplate(String source) {
