@@ -74,7 +74,8 @@ public final class FXChatBukkit extends JavaPlugin {
                     "filters.yml",
                     "filters/local.txt",
                     "functions.yml",
-                    "custom-functions.yml"
+                    "custom-functions.yml",
+                    "ignore-gui.yml"
             ).forEach(path -> saveResource(path, false));
         }
         settingsLoader = new SettingsLoader(getDataFolder(), getServer().getName(), getLogger()::warning);
@@ -267,6 +268,7 @@ public final class FXChatBukkit extends JavaPlugin {
                             nextFunctions.mentionAll().enabled(), nextFunctions.mentionAll().keys());
                     scripts.update(nextScripts);
                     chatFilters.update(nextSettings.filters());
+                    ignoreService.reloadLayout();
                     chatService.updateSettings(nextSettings);
                     registerConfiguredCommands(command, nextSettings);
                     sendReloadResult(replyPlayerId, "command.reload-success");

@@ -1,0 +1,37 @@
+title: '<dark_gray>屏蔽列表 <gray>({page}/{pages})'
+layout:
+  - 'xxxxxxxxx'
+  - 'xaaaaaaax'
+  - 'xaaaaaaax'
+  - 'pxxxbxxxn'
+
+filler:
+  material: GRAY_STAINED_GLASS_PANE
+  name: ' '
+  lore: []
+entry:
+  material: NAME_TAG
+  name: '<red>已屏蔽: <white>{player}'
+  lore:
+    - '<gray>蹲下并右键取消屏蔽'
+add:
+  material: ANVIL
+  name: '<green>添加屏蔽玩家'
+  lore:
+    - '<gray>点击输入玩家 ID'
+previous:
+  material: ARROW
+  name: '<yellow>上一页'
+  lore: []
+  disabled:
+    material: BARRIER
+    name: '<gray>没有上一页'
+    lore: []
+next:
+  material: ARROW
+  name: '<yellow>下一页'
+  lore: []
+  disabled:
+    material: BARRIER
+    name: '<gray>没有下一页'
+    lore: []
