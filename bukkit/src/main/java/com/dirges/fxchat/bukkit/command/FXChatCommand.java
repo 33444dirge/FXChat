@@ -85,18 +85,18 @@ public final class FXChatCommand implements CommandExecutor, TabCompleter {
             case "sudo" -> sudo(sender, args);
             case "view" -> view(sender, args);
             case "spy" -> privateSpy(sender, args);
-            case "ignore" -> openIgnoreDialog(sender);
+            case "ignore" -> openIgnoreGui(sender);
             default -> messages.send(sender, "command.unknown");
         }
         return true;
     }
 
-    private void openIgnoreDialog(CommandSender sender) {
+    private void openIgnoreGui(CommandSender sender) {
         if (!(sender instanceof Player player)) {
             messages.send(sender, "command.only-player");
             return;
         }
-        ignoreService.openDialog(player);
+        ignoreService.openGui(player);
     }
 
     public boolean onViewCommand(CommandSender sender, Command command, String[] args) {

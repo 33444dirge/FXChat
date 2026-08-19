@@ -5,6 +5,7 @@ import com.dirges.fxchat.bukkit.chat.ChatFilterService;
 import com.dirges.fxchat.bukkit.chat.MentionCompletionService;
 import com.dirges.fxchat.bukkit.function.ShowcaseStore;
 import com.dirges.fxchat.bukkit.hook.BlockLockerHook;
+import com.dirges.fxchat.bukkit.moderation.IgnoreService;
 import com.dirges.fxchat.bukkit.player.PlayerSessionManager;
 import com.dirges.fxchat.bukkit.scheduler.SchedulerFacade;
 import io.papermc.paper.event.player.AsyncChatEvent;
@@ -32,6 +33,7 @@ public final class FXChatListener implements Listener {
     private final PlayerSessionManager sessions;
     private final MentionCompletionService mentionCompletions;
     private final BlockLockerHook blockLocker;
+    private final IgnoreService ignoreService;
 
     public FXChatListener(
             SchedulerFacade scheduler,
@@ -39,7 +41,8 @@ public final class FXChatListener implements Listener {
             ChatFilterService filters,
             PlayerSessionManager sessions,
             MentionCompletionService mentionCompletions,
-            BlockLockerHook blockLocker
+            BlockLockerHook blockLocker,
+            IgnoreService ignoreService
     ) {
         this.scheduler = scheduler;
         this.chatService = chatService;
@@ -47,6 +50,7 @@ public final class FXChatListener implements Listener {
         this.sessions = sessions;
         this.mentionCompletions = mentionCompletions;
         this.blockLocker = blockLocker;
+        this.ignoreService = ignoreService;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -103,6 +107,10 @@ public final class FXChatListener implements Listener {
 
     @EventHandler
     public void onShowcaseClick(InventoryClickEvent event) {
+        if (event.getView().getTopInventory().getHolder() instanceof IgnoreService.Holder) {
+            ignoreService.handleClick(event);
+            return;
+        }
         if (event.getView().getTopInventory().getHolder() instanceof ShowcaseStore.Holder) {
             event.setCancelled(true);
         }
@@ -110,6 +118,10 @@ public final class FXChatListener implements Listener {
 
     @EventHandler
     public void onShowcaseDrag(InventoryDragEvent event) {
+        if (event.getView().getTopInventory().getHolder() instanceof IgnoreService.Holder) {
+            event.setCancelled(true);
+            return;
+        }
         if (event.getView().getTopInventory().getHolder() instanceof ShowcaseStore.Holder) {
             event.setCancelled(true);
         }
