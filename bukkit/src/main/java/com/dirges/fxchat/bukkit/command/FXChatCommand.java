@@ -8,6 +8,7 @@ import com.dirges.fxchat.bukkit.function.ChatFunctionService;
 import com.dirges.fxchat.bukkit.function.ShowcaseStore;
 import com.dirges.fxchat.bukkit.moderation.MuteRecord;
 import com.dirges.fxchat.bukkit.moderation.MuteService;
+import com.dirges.fxchat.bukkit.moderation.IgnoreService;
 import com.dirges.fxchat.bukkit.player.PlayerSessionManager;
 import com.dirges.fxchat.bukkit.proxy.BukkitProxyTransport;
 import com.dirges.fxchat.bukkit.scheduler.SchedulerFacade;
@@ -36,6 +37,7 @@ public final class FXChatCommand implements CommandExecutor, TabCompleter {
     private final ChatFunctionService functions;
     private final ChatService chatService;
     private final MuteService muteService;
+    private final IgnoreService ignoreService;
     private final BukkitProxyTransport transport;
 
     public FXChatCommand(
@@ -46,6 +48,7 @@ public final class FXChatCommand implements CommandExecutor, TabCompleter {
             ChatFunctionService functions,
             ChatService chatService,
             MuteService muteService,
+            IgnoreService ignoreService,
             BukkitProxyTransport transport
     ) {
         this.plugin = plugin;
@@ -55,6 +58,7 @@ public final class FXChatCommand implements CommandExecutor, TabCompleter {
         this.functions = functions;
         this.chatService = chatService;
         this.muteService = muteService;
+        this.ignoreService = ignoreService;
         this.transport = transport;
     }
 
@@ -81,9 +85,18 @@ public final class FXChatCommand implements CommandExecutor, TabCompleter {
             case "sudo" -> sudo(sender, args);
             case "view" -> view(sender, args);
             case "spy" -> privateSpy(sender, args);
+            case "ignore" -> openIgnoreDialog(sender);
             default -> messages.send(sender, "command.unknown");
         }
         return true;
+    }
+
+    private void openIgnoreDialog(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            messages.send(sender, "command.only-player");
+            return;
+        }
+        ignoreService.openDialog(player);
     }
 
     public boolean onViewCommand(CommandSender sender, Command command, String[] args) {
@@ -412,7 +425,7 @@ public final class FXChatCommand implements CommandExecutor, TabCompleter {
             return List.of();
         }
         if (args.length == 1) {
-            return Stream.of("channel", "help", "reload", "version", "view", "spy", "sudo")
+            return Stream.of("channel", "help", "reload", "version", "view", "spy", "ignore", "sudo")
                     .filter(value -> value.startsWith(args[0].toLowerCase(Locale.ROOT)))
                     .toList();
         }

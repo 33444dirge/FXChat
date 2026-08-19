@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.function.BiPredicate;
 import java.util.function.IntConsumer;
 
 public final class PlayerSessionManager {
@@ -136,6 +137,19 @@ public final class PlayerSessionManager {
             Consumer<Player> visibleRecipient,
             IntConsumer deliveredCount
     ) {
+        broadcast(scheduler, component, channel, origin, (player, ignored) -> true,
+                visibleRecipient, deliveredCount);
+    }
+
+    public void broadcast(
+            SchedulerFacade scheduler,
+            Component component,
+            Settings.ChannelSettings channel,
+            PlayerSnapshot origin,
+            BiPredicate<Player, PlayerSnapshot> recipientFilter,
+            Consumer<Player> visibleRecipient,
+            IntConsumer deliveredCount
+    ) {
         AtomicInteger pending = new AtomicInteger(1);
         AtomicInteger delivered = new AtomicInteger();
         for (PlayerRef ref : sessions.values()) {
@@ -151,6 +165,9 @@ public final class PlayerSessionManager {
                         return;
                     }
                     if (origin != null && channel.range() > 0 && !withinRange(player, origin, channel.range())) {
+                        return;
+                    }
+                    if (!recipientFilter.test(player, origin)) {
                         return;
                     }
                     player.sendMessage(component);

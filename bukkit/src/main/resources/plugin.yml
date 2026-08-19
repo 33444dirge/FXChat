@@ -11,7 +11,7 @@ commands:
   fxchat:
     description: Manage FXChat channels and configuration
     aliases: [fxc]
-    usage: /fxchat <help|channel|reload|version|view|spy|sudo>
+    usage: /fxchat <help|channel|reload|version|view|spy|ignore|sudo>
   view-item:
     description: View an item shared in FXChat
     usage: /view-item <token>
@@ -29,7 +29,7 @@ permissions:
   fxchat.chat:
     default: true
   fxchat.color:
-    default: false
+    default: op
   fxchat.admin:
     default: op
   fxchat.sudo:

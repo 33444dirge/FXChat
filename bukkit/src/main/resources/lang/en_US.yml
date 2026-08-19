@@ -9,6 +9,7 @@ command:
     <gray>/msg [player] [message] - Send a private message</gray>
     <gray>/reply [message] - Reply to the last private message</gray>
     <gray>/fxchat spy [on|off] - Toggle private message spy mode</gray>
+    <gray>/fxchat ignore - Open the ignore list dialog</gray>
     <gray>/mute [player] [reason] [duration] - Mute a player</gray>
     <gray>/fxchat sudo [player] [message] [channel] [private player] - Make a player send a message</gray>
     <gray>/fxchat view [item|inventory|enderchest|container] [token] - View a showcase</gray>
@@ -33,6 +34,7 @@ command:
       volume: 1
       pitch: 0.8
   view-usage: "<yellow>Usage: /fxchat view [item|inventory|enderchest|container] [token]</yellow>"
+  player-ignored: "<yellow>This player has ignored you; the message was not sent.</yellow>"
 
 chat:
   no-permission: "<red>You do not have permission to chat.</red>"

@@ -8,6 +8,7 @@ import com.dirges.fxchat.bukkit.function.ChatFunctionService;
 import com.dirges.fxchat.bukkit.hook.CustomNameplatesHook;
 import com.dirges.fxchat.bukkit.moderation.MuteRecord;
 import com.dirges.fxchat.bukkit.moderation.MuteService;
+import com.dirges.fxchat.bukkit.moderation.IgnoreService;
 import com.dirges.fxchat.bukkit.player.PlayerSessionManager;
 import com.dirges.fxchat.bukkit.player.PlayerSnapshot;
 import com.dirges.fxchat.bukkit.protocol.SeenMessages;
@@ -45,6 +46,7 @@ public final class ChatService implements AutoCloseable {
     private final BukkitProxyTransport transport;
     private final CustomNameplatesHook customNameplates;
     private final MuteService muteService;
+    private final IgnoreService ignoreService;
     private final ChatFilterService filters;
     private Consumer<Player> leaveExternalChat;
     private final SeenMessages seenMessages = new SeenMessages();
@@ -69,6 +71,7 @@ public final class ChatService implements AutoCloseable {
             Consumer<Player> leaveExternalChat,
             CustomNameplatesHook customNameplates,
             MuteService muteService,
+            IgnoreService ignoreService,
             ChatFilterService filters
     ) {
         this.plugin = plugin;
@@ -82,6 +85,7 @@ public final class ChatService implements AutoCloseable {
         this.transport = transport;
         this.customNameplates = customNameplates;
         this.muteService = muteService;
+        this.ignoreService = ignoreService;
         this.filters = filters;
         this.leaveExternalChat = leaveExternalChat;
     }
@@ -414,7 +418,9 @@ public final class ChatService implements AutoCloseable {
         String deliveredChannelId = channel.id();
         double deliveredChannelRange = channel.range();
         seenMessages.markIfNew(messageId);
-        sessions.broadcast(scheduler, component, channel, snapshot, recipient -> functions.notifyMention(
+        sessions.broadcast(scheduler, component, channel, snapshot,
+                (recipient, ignoredOrigin) -> !ignoreService.ignores(recipient.getUniqueId(), snapshot.name()),
+                recipient -> functions.notifyMention(
                 recipient,
                 player.getUniqueId(),
                 player.getName(),
@@ -468,12 +474,15 @@ public final class ChatService implements AutoCloseable {
         Set<UUID> mentionedPlayers = Set.copyOf(packet.mentionedPlayers());
         try {
             Component component = GsonComponentSerializer.gson().deserialize(packet.componentJson());
-            sessions.broadcast(scheduler, component, channel, null, recipient -> functions.notifyMention(
+            sessions.broadcast(scheduler, component, channel, null,
+                    (recipient, ignoredOrigin) -> !ignoreService.ignores(recipient.getUniqueId(), packet.senderName()),
+                    recipient -> functions.notifyMention(
                     recipient,
                     packet.senderId(),
                     packet.senderName(),
                     mentionedPlayers,
-                    packet.mentionAll()));
+                    packet.mentionAll()),
+                    ignored -> { });
         } catch (RuntimeException exception) {
             plugin.getLogger().warning("Dropped FXChat message with invalid component data");
         }
@@ -493,6 +502,9 @@ public final class ChatService implements AutoCloseable {
             String senderName = packet.senderName();
             if (targetLocal) {
                 sessions.runAt(packet.targetId(), scheduler, target -> {
+                    if (ignoreService.ignores(target.getUniqueId(), senderName)) {
+                        return;
+                    }
                     target.sendMessage(receiverComponent);
                     replyTargets.put(packet.targetId(), new ReplyTarget(packet.senderId(), senderName));
                     scripts.triggerPrivateReceived(
@@ -548,6 +560,10 @@ public final class ChatService implements AutoCloseable {
         }
         if (target.id().equals(sender.getUniqueId())) {
             messages.send(sender, "private.self");
+            return;
+        }
+        if (ignoreService.ignores(target.id(), sender.getName())) {
+            messages.send(sender, "private.player-ignored");
             return;
         }
         if (!sessions.isLocal(target.id()) && !settings.proxyEnabled()) {

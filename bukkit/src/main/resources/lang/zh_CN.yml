@@ -9,6 +9,7 @@ command:
     <gray>/msg [玩家] [消息] - 发送私聊消息</gray>
     <gray>/reply [消息] - 回复最近的私聊</gray>
     <gray>/fxchat spy [on|off] - 切换私聊监听模式</gray>
+    <gray>/fxchat ignore - 打开屏蔽列表 Dialog</gray>
     <gray>/mute [玩家] [原因] [时长] - 禁言玩家</gray>
     <gray>/fxchat sudo [玩家ID] [消息] [频道] [私聊玩家] - 让指定玩家发送消息</gray>
     <gray>/fxchat view [item|inventory|enderchest|container] [令牌] - 查看聊天展示</gray>
@@ -33,6 +34,7 @@ command:
       volume: 1
       pitch: 0.8
   view-usage: "<yellow>用法：/fxchat view [item|inventory|enderchest|container] [令牌]</yellow>"
+  player-ignored: "<yellow>该玩家已屏蔽你，消息未发送。</yellow>"
 
 chat:
   repeated-message: "<yellow>请不要重复发送相同消息。</yellow>"

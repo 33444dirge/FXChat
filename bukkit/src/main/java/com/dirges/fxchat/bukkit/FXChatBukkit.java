@@ -21,6 +21,7 @@ import com.dirges.fxchat.bukkit.hook.LandsHook;
 import com.dirges.fxchat.bukkit.listener.FXChatListener;
 import com.dirges.fxchat.bukkit.moderation.MuteRecord;
 import com.dirges.fxchat.bukkit.moderation.MuteService;
+import com.dirges.fxchat.bukkit.moderation.IgnoreService;
 import com.dirges.fxchat.bukkit.player.PlayerSessionManager;
 import com.dirges.fxchat.bukkit.proxy.BukkitProxyTransport;
 import com.dirges.fxchat.bukkit.render.MessageRenderer;
@@ -51,6 +52,7 @@ public final class FXChatBukkit extends JavaPlugin {
     private ChatService chatService;
     private ChatFilterService chatFilters;
     private MuteService muteService;
+    private IgnoreService ignoreService;
     private MentionCompletionService mentionCompletions;
     private BukkitProxyTransport transport;
     private CustomNameplatesHook customNameplates;
@@ -148,6 +150,7 @@ public final class FXChatBukkit extends JavaPlugin {
                 getLogger()::warning
         );
         muteService.start();
+        ignoreService = new IgnoreService(getDataFolder(), scheduler, getLogger()::warning);
         FunctionSettings functionSettings = FunctionSettings.load(
                 new java.io.File(getDataFolder(), "functions.yml"), getLogger()::warning);
         mentionCompletions = new MentionCompletionService(
@@ -202,13 +205,13 @@ public final class FXChatBukkit extends JavaPlugin {
         });
         chatService = new ChatService(
                 this, scheduler, messages, settings, sessions, renderer, functions, scripts, transport,
-                leaveExternalChat, customNameplates, muteService, chatFilters);
+                leaveExternalChat, customNameplates, muteService, ignoreService, chatFilters);
         serviceReference.set(chatService);
         transport.enable();
 
         commandMap = getServer().getCommandMap();
         command = new FXChatCommand(this, scheduler, sessions, messages, functions, chatService,
-                muteService, transport);
+                muteService, ignoreService, transport);
         registerConfiguredCommands(command, settings);
 
         scheduler.runGlobal(() -> {
@@ -293,6 +296,9 @@ public final class FXChatBukkit extends JavaPlugin {
         }
         if (muteService != null) {
             muteService.close();
+        }
+        if (ignoreService != null) {
+            ignoreService.close();
         }
         if (customNameplates != null) {
             customNameplates.close();

@@ -48,7 +48,8 @@ public record DatabaseSettings(
         if (type.equals("mysql")) {
             String url = "jdbc:mysql://" + mysqlHost + ":" + mysqlPort + "/" + mysqlDatabase
                     + "?useSSL=" + mysqlSsl
-                    + "&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8mb4";
+                    + "&serverTimezone=UTC&useUnicode=true&characterEncoding=UTF-8"
+                    + "&connectionCollation=utf8mb4_unicode_ci";
             return DriverManager.getConnection(url, mysqlUsername, mysqlPassword);
         }
 
