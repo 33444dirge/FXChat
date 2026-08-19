@@ -95,6 +95,13 @@ public final class ChatFunctionService implements AutoCloseable {
         this.customFunctions = customFunctions;
     }
 
+    public List<Pattern> customFunctionPatterns() {
+        return customFunctions.rules().stream()
+                .filter(CustomFunctionSettings.Rule::enabled)
+                .map(CustomFunctionSettings.Rule::pattern)
+                .toList();
+    }
+
     public PreparedMessage prepare(Player sender, String message) {
         FunctionState currentState = state;
         FunctionSettings current = currentState.settings();

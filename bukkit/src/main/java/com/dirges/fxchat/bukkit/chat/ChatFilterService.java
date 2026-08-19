@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -76,30 +77,47 @@ public final class ChatFilterService implements AutoCloseable {
 
     /** Filters chat while preserving complete online player IDs for the mention resolver. */
     public String filterChatPreservingPlayerNames(String message, Collection<String> playerNames) {
+        return filterChatPreservingMatches(message, playerNames, List.of());
+    }
+
+    /** Filters chat without modifying complete online player IDs or configured function triggers. */
+    public String filterChatPreservingMatches(
+            String message, Collection<String> playerNames, Collection<Pattern> protectedPatterns
+    ) {
         if (!targets.chat() || message == null || message.isEmpty() || playerNames == null || playerNames.isEmpty()) {
-            return filterChat(message);
+            if (!targets.chat() || message == null || message.isEmpty() || protectedPatterns == null || protectedPatterns.isEmpty()) {
+                return filterChat(message);
+            }
         }
-        String names = playerNames.stream()
+        List<Range> ranges = new ArrayList<>();
+        String names = (playerNames == null ? List.<String>of() : playerNames).stream()
                 .filter(name -> name != null && !name.isBlank())
                 .sorted(Comparator.comparingInt(String::length).reversed())
                 .map(Pattern::quote)
                 .reduce((left, right) -> left + "|" + right)
                 .orElse("");
-        if (names.isBlank()) {
+        if (!names.isBlank()) {
+            Matcher namesMatcher = Pattern.compile("(?<![A-Za-z0-9_])(?:" + names + ")(?![A-Za-z0-9_])",
+                    Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE).matcher(message);
+            while (namesMatcher.find()) ranges.add(new Range(namesMatcher.start(), namesMatcher.end()));
+        }
+        if (protectedPatterns != null) for (Pattern pattern : protectedPatterns) {
+            Matcher matcher = pattern.matcher(message);
+            while (matcher.find()) ranges.add(new Range(matcher.start(), matcher.end()));
+        }
+        if (ranges.isEmpty()) {
             return filterChat(message);
         }
-        Matcher mentions = Pattern.compile("(?<![A-Za-z0-9_])(?:" + names + ")(?![A-Za-z0-9_])",
-                Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE).matcher(message);
-        if (!mentions.find()) {
-            return filterChat(message);
-        }
+        Collections.sort(ranges, Comparator.comparingInt(Range::start));
         StringBuilder result = new StringBuilder(message.length());
         int end = 0;
-        do {
-            result.append(filter(message.substring(end, mentions.start())));
-            result.append(mentions.group());
-            end = mentions.end();
-        } while (mentions.find());
+        for (Range range : ranges) {
+            if (range.end() <= end) continue;
+            int start = Math.max(end, range.start());
+            result.append(filter(message.substring(end, start)));
+            result.append(message, start, range.end());
+            end = range.end();
+        }
         result.append(filter(message.substring(end)));
         return result.toString();
     }
@@ -221,4 +239,6 @@ public final class ChatFilterService implements AutoCloseable {
     private record Targets(boolean chat, boolean sign, boolean anvil, String signReplacement, String anvilReplacement) {
         private static final Targets DISABLED = new Targets(false, false, false, "*", "*");
     }
+
+    private record Range(int start, int end) { }
 }
