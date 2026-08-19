@@ -164,6 +164,7 @@ function:
   enderchest-format: "<dark_gray>[<aqua>{player}'s ender chest</aqua>]</dark_gray>"
   enderchest-hover: "<gray>Click to view {player}'s ender chest</gray>"
   enderchest-title: "{player}'s ender chest"
+  shulker-box-title: "Shulker Box Preview"
   enderchest-unavailable: "<red>This ender chest showcase has expired or does not exist.</red>"
   enderchest-cooldown:
     - type: actionbar

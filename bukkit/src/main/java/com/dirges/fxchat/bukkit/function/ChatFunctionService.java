@@ -189,7 +189,7 @@ public final class ChatFunctionService implements AutoCloseable {
         scheduler.runAtEntity(player, () -> {
             if (!player.isOnline()) return;
             ShowcaseStore.Holder holder = new ShowcaseStore.Holder();
-            Inventory inventory = Bukkit.createInventory(holder, 27, Component.text("潜影盒预览"));
+            Inventory inventory = Bukkit.createInventory(holder, 27, messages.component("function.shulker-box-title"));
             holder.bind(inventory);
             populateEnderChestShowcase(inventory, contents);
             player.openInventory(inventory);

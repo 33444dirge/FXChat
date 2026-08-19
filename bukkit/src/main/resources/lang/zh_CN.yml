@@ -164,6 +164,7 @@ function:
   enderchest-format: "<dark_gray>[<aqua>{player} 的末影箱</aqua>]</dark_gray>"
   enderchest-hover: "<gray>点击查看 {player} 的末影箱</gray>"
   enderchest-title: "{player} 的末影箱"
+  shulker-box-title: "潜影盒预览"
   enderchest-unavailable: "<red>该末影箱展示已过期或不存在。</red>"
   enderchest-cooldown:
     - type: actionbar
