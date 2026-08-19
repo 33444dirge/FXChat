@@ -29,18 +29,18 @@ permissions:
   fxchat.chat:
     default: true
   fxchat.color:
-    default: false
+    default: op
     children:
       fxchat.color.chat.*: true
       fxchat.color.anvil.*: true
       fxchat.color.sign.*: true
   fxchat.color.chat.*:
-    default: false
+    default: op
     children:
       fxchat.color.chat.legacy: true
       fxchat.color.chat.minimessages: true
   fxchat.color.chat.legacy:
-    default: false
+    default: op
     children:
       fxchat.color.chat.legacy.*: true
       fxchat.color.chat.legacy.color: true
@@ -51,7 +51,7 @@ permissions:
       fxchat.color.chat.legacy.obfuscated: true
       fxchat.color.chat.legacy.reset: true
   fxchat.color.chat.legacy.*:
-    default: false
+    default: op
     children:
       fxchat.color.chat.legacy.color: true
       fxchat.color.chat.legacy.bold: true
@@ -61,91 +61,91 @@ permissions:
       fxchat.color.chat.legacy.obfuscated: true
       fxchat.color.chat.legacy.reset: true
   fxchat.color.chat.legacy.color:
-    default: false
+    default: op
   fxchat.color.chat.legacy.bold:
-    default: false
+    default: op
   fxchat.color.chat.legacy.underlined:
-    default: false
+    default: op
   fxchat.color.chat.legacy.italic:
-    default: false
+    default: op
   fxchat.color.chat.legacy.strikethrough:
-    default: false
+    default: op
   fxchat.color.chat.legacy.obfuscated:
-    default: false
+    default: op
   fxchat.color.chat.legacy.reset:
-    default: false
+    default: op
   fxchat.color.chat.minimessages:
-    default: false
+    default: op
     children:
       fxchat.color.chat.minimessages.*: true
   fxchat.color.chat.minimessages.*:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.color:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.shadow-color:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.decoration:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.reset:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.click:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.hover:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.keybind:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.translatable:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.fallback:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.insertion:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.rainbow:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.gradient:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.transition:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.font:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.newline:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.selector:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.score:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.nbt:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.pride:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.sprite:
-    default: false
+    default: op
   fxchat.color.chat.minimessages.head:
-    default: false
+    default: op
   fxchat.color.anvil.*:
-    default: false
+    default: op
     children:
       fxchat.color.anvil.legacy: true
       fxchat.color.anvil.minimessages: true
   fxchat.color.anvil.legacy:
-    default: false
+    default: op
     children:
       fxchat.color.anvil.legacy.*: true
   fxchat.color.anvil.minimessages:
-    default: false
+    default: op
     children:
       fxchat.color.anvil.minimessages.*: true
   fxchat.color.sign.*:
-    default: false
+    default: op
     children:
       fxchat.color.sign.legacy: true
       fxchat.color.sign.minimessages: true
   fxchat.color.sign.legacy:
-    default: false
+    default: op
     children:
       fxchat.color.sign.legacy.*: true
   fxchat.color.sign.minimessages:
-    default: false
+    default: op
     children:
       fxchat.color.sign.minimessages.*: true
   fxchat.admin:
