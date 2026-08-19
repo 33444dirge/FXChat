@@ -67,19 +67,18 @@ public final class FXChatBukkit extends JavaPlugin {
     public void onEnable() {
         FoliaSupport.detect();
         scheduler = new SchedulerFacade(this);
-        boolean dataFolderMissing = !getDataFolder().isDirectory();
-        if (dataFolderMissing) {
-            saveDefaultConfig();
-            List.of(
-                    "proxy.yml",
-                    "database.yml",
-                    "filters.yml",
-                    "filters/local.txt",
-                    "functions.yml",
-                    "custom-functions.yml",
-                    "ignore-gui.yml"
-            ).forEach(path -> saveResource(path, false));
+        if (!getDataFolder().isDirectory() && !getDataFolder().mkdirs() && !getDataFolder().isDirectory()) {
+            throw new IllegalStateException("Could not create plugin data folder: " + getDataFolder());
         }
+        saveDefaultConfigIfMissing();
+        List.of(
+                "proxy.yml",
+                "database.yml",
+                "filters.yml",
+                "functions.yml",
+                "custom-functions.yml",
+                "ignore-gui.yml"
+        ).forEach(this::saveDefaultResourceIfMissing);
         settingsLoader = new SettingsLoader(getDataFolder(), getServer().getName(), getLogger()::warning);
         saveDefaultDirectoryIfMissing("channels", List.of(
                 "channels/公开.yml",
@@ -95,9 +94,7 @@ public final class FXChatBukkit extends JavaPlugin {
                 "lang/zh_CN.yml",
                 "lang/en_US.yml"
         ));
-        if (!new java.io.File(getDataFolder(), "filters/local.txt").isFile()) {
-            saveResource("filters/local.txt", false);
-        }
+        saveDefaultDirectoryIfMissing("filters", List.of("filters/local.txt"));
 
         settings = settingsLoader.load();
         chatFilters = new ChatFilterService(scheduler, new java.io.File(getDataFolder(), "filters.yml"), getLogger()::warning);
@@ -248,6 +245,20 @@ public final class FXChatBukkit extends JavaPlugin {
             return;
         }
         resources.forEach(path -> saveResource(path, false));
+    }
+
+    private void saveDefaultResourceIfMissing(String path) {
+        java.io.File file = new java.io.File(getDataFolder(), path);
+        if (!file.isFile()) {
+            saveResource(path, false);
+        }
+    }
+
+    private void saveDefaultConfigIfMissing() {
+        java.io.File file = new java.io.File(getDataFolder(), "config.yml");
+        if (!file.isFile()) {
+            saveDefaultConfig();
+        }
     }
 
     public Settings settings() {
