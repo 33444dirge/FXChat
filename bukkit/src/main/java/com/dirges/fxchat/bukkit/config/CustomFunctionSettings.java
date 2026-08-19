@@ -30,13 +30,19 @@ public record CustomFunctionSettings(List<Rule> rules) {
                 warning.accept("Ignored custom function without a section: " + id);
                 continue;
             }
-            String rawPattern = section.getString("pattern", "").trim();
-            if (rawPattern.isEmpty()) {
+            List<String> rawPatterns = section.isList("pattern")
+                    ? section.getStringList("pattern")
+                    : List.of(section.getString("pattern", ""));
+            rawPatterns = rawPatterns.stream().map(String::trim).filter(value -> !value.isEmpty()).toList();
+            if (rawPatterns.isEmpty()) {
                 warning.accept("Ignored custom function without a pattern: " + id);
                 continue;
             }
             try {
-                Pattern pattern = Pattern.compile(rawPattern);
+                Pattern pattern = Pattern.compile(rawPatterns.stream()
+                        .map(value -> "(?:" + value + ")")
+                        .reduce((left, right) -> left + "|" + right)
+                        .orElseThrow());
                 String rawFilter = section.getString("text-filter", "").trim();
                 Pattern textFilter = rawFilter.isEmpty() ? null : Pattern.compile(rawFilter);
                 ConfigurationSection display = section.getConfigurationSection("display");

@@ -1,5 +1,6 @@
 # TrChat-compatible custom chat functions.
 # {0} is replaced with the value captured from the message.
+# pattern accepts either one regex string or a list of regex strings.
 
 Custom:
   shareUrl:
