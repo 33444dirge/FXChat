@@ -29,7 +29,38 @@ permissions:
   fxchat.chat:
     default: true
   fxchat.color:
-    default: op
+    default: false
+    children:
+      fxchat.color.chat.*: true
+      fxchat.color.anvil.*: true
+      fxchat.color.sign.*: true
+  fxchat.color.chat.*:
+    default: false
+    children:
+      fxchat.color.chat.legacy: true
+      fxchat.color.chat.minimessages: true
+  fxchat.color.chat.legacy:
+    default: false
+  fxchat.color.chat.minimessages:
+    default: false
+  fxchat.color.anvil.*:
+    default: false
+    children:
+      fxchat.color.anvil.legacy: true
+      fxchat.color.anvil.minimessages: true
+  fxchat.color.anvil.legacy:
+    default: false
+  fxchat.color.anvil.minimessages:
+    default: false
+  fxchat.color.sign.*:
+    default: false
+    children:
+      fxchat.color.sign.legacy: true
+      fxchat.color.sign.minimessages: true
+  fxchat.color.sign.legacy:
+    default: false
+  fxchat.color.sign.minimessages:
+    default: false
   fxchat.admin:
     default: op
   fxchat.sudo:

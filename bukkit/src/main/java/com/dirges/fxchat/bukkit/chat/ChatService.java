@@ -16,12 +16,10 @@ import com.dirges.fxchat.bukkit.proxy.BukkitProxyTransport;
 import com.dirges.fxchat.bukkit.render.MessageRenderer;
 import com.dirges.fxchat.bukkit.scheduler.SchedulerFacade;
 import com.dirges.fxchat.bukkit.script.ChatScriptService;
-import com.dirges.fxchat.bukkit.text.MessageColorParser;
 import com.dirges.fxchat.common.protocol.ChatPacket;
 import com.dirges.fxchat.common.protocol.PrivateMessagePacket;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -35,7 +33,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 public final class ChatService implements AutoCloseable {
-    private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
     private final FXChatBukkit plugin;
     private final SchedulerFacade scheduler;
     private final MessageService messages;
@@ -401,10 +398,6 @@ public final class ChatService implements AutoCloseable {
             return;
         }
 
-        boolean protectedInput = !player.hasPermission(MessageRenderer.COLOR_PERMISSION);
-        if (protectedInput) {
-            message = MINI_MESSAGE.escapeTags(MessageColorParser.neutralizeSectionSigns(message));
-        }
         message = filters.filterChat(message);
         if (!tryRecordMessage(player.getUniqueId(), message, current.antiRepeatWindowMillis(),
                 current.antiRepeatSimilarity())) {
@@ -412,7 +405,7 @@ public final class ChatService implements AutoCloseable {
             return;
         }
         PlayerSnapshot snapshot = snapshot(player);
-        MessageRenderer.RenderedMessage rendered = renderer.render(player, current, channel, message, protectedInput);
+        MessageRenderer.RenderedMessage rendered = renderer.render(player, current, channel, message, false);
         Component component = rendered.component();
         UUID messageId = UUID.randomUUID();
         String deliveredChannelId = channel.id();
@@ -438,7 +431,11 @@ public final class ChatService implements AutoCloseable {
                 });
         if (customNameplates != null) {
             customNameplates.onPublicChat(
-                    player, message, channel.id(), player.hasPermission(MessageRenderer.COLOR_PERMISSION));
+                    player,
+                    renderer.prepareInput(player, message, MessageRenderer.ColorTarget.CHAT),
+                    channel.id(),
+                    renderer.hasColorPermission(player, MessageRenderer.ColorTarget.CHAT, "minimessages"),
+                    renderer.hasColorPermission(player, MessageRenderer.ColorTarget.CHAT, "legacy"));
         }
         if (current.proxyEnabled() && channel.crossServer()) {
             ChatPacket packet = new ChatPacket(
@@ -579,11 +576,7 @@ public final class ChatService implements AutoCloseable {
             messages.send(sender, "chat.message-too-long");
             return;
         }
-        boolean protectedInput = !sender.hasPermission(MessageRenderer.COLOR_PERMISSION);
-        String filterSource = protectedInput
-                ? MINI_MESSAGE.escapeTags(MessageColorParser.neutralizeSectionSigns(rawMessage))
-                : rawMessage;
-        String message = filters.filterChat(filterSource);
+        String message = filters.filterChat(rawMessage);
         if (message.isBlank()) {
             return;
         }
@@ -601,7 +594,7 @@ public final class ChatService implements AutoCloseable {
                 current.privateReceiverFormat(),
                 current.privateSpyFormat(),
                 target.name(),
-                protectedInput
+                false
         );
         Component senderComponent = rendered.senderComponent();
         Component receiverComponent = rendered.receiverComponent();

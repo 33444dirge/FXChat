@@ -224,7 +224,7 @@ public final class FXChatBukkit extends JavaPlugin {
         });
         Bukkit.getPluginManager().registerEvents(
                 new FXChatListener(scheduler, chatService, chatFilters, sessions, mentionCompletions, blockLocker,
-                        ignoreService), this);
+                        ignoreService, renderer), this);
         if (getCommand("fxchat") != null) {
             Objects.requireNonNull(getCommand("fxchat")).setExecutor(command);
             Objects.requireNonNull(getCommand("fxchat")).setTabCompleter(command);

@@ -7,6 +7,7 @@ import com.dirges.fxchat.bukkit.function.ShowcaseStore;
 import com.dirges.fxchat.bukkit.hook.BlockLockerHook;
 import com.dirges.fxchat.bukkit.moderation.IgnoreService;
 import com.dirges.fxchat.bukkit.player.PlayerSessionManager;
+import com.dirges.fxchat.bukkit.render.MessageRenderer;
 import com.dirges.fxchat.bukkit.scheduler.SchedulerFacade;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -34,6 +35,7 @@ public final class FXChatListener implements Listener {
     private final MentionCompletionService mentionCompletions;
     private final BlockLockerHook blockLocker;
     private final IgnoreService ignoreService;
+    private final MessageRenderer renderer;
 
     public FXChatListener(
             SchedulerFacade scheduler,
@@ -42,7 +44,8 @@ public final class FXChatListener implements Listener {
             PlayerSessionManager sessions,
             MentionCompletionService mentionCompletions,
             BlockLockerHook blockLocker,
-            IgnoreService ignoreService
+            IgnoreService ignoreService,
+            MessageRenderer renderer
     ) {
         this.scheduler = scheduler;
         this.chatService = chatService;
@@ -51,6 +54,7 @@ public final class FXChatListener implements Listener {
         this.mentionCompletions = mentionCompletions;
         this.blockLocker = blockLocker;
         this.ignoreService = ignoreService;
+        this.renderer = renderer;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -137,7 +141,9 @@ public final class FXChatListener implements Listener {
             }
             String filtered = filters.filterSign(original);
             if (!original.equals(filtered)) {
-                event.setLine(line, filtered);
+                event.line(line, renderer.renderInput(event.getPlayer(), filtered, MessageRenderer.ColorTarget.SIGN));
+            } else if (renderer.hasAnyColorPermission(event.getPlayer(), MessageRenderer.ColorTarget.SIGN)) {
+                event.line(line, renderer.renderInput(event.getPlayer(), original, MessageRenderer.ColorTarget.SIGN));
             }
         }
     }
@@ -152,18 +158,22 @@ public final class FXChatListener implements Listener {
 
     @EventHandler
     public void onPrepareAnvil(PrepareAnvilEvent event) {
+        if (!(event.getView().getPlayer() instanceof Player player)) {
+            return;
+        }
         ItemStack result = event.getResult();
         if (result == null || result.getType().isAir()) {
             return;
         }
         ItemMeta meta = result.getItemMeta();
         boolean changed = false;
+        boolean renderColors = renderer.hasAnyColorPermission(player, MessageRenderer.ColorTarget.ANVIL);
         if (meta.hasDisplayName()) {
             Component name = meta.displayName();
             String original = PlainTextComponentSerializer.plainText().serialize(name);
             String filtered = filters.filterAnvil(original);
-            if (!original.equals(filtered)) {
-                meta.displayName(Component.text(filtered));
+            if (!original.equals(filtered) || renderColors) {
+                meta.displayName(renderer.renderInput(player, filtered, MessageRenderer.ColorTarget.ANVIL));
                 changed = true;
             }
         }
@@ -171,8 +181,8 @@ public final class FXChatListener implements Listener {
             Component name = meta.itemName();
             String original = PlainTextComponentSerializer.plainText().serialize(name);
             String filtered = filters.filterAnvil(original);
-            if (!original.equals(filtered)) {
-                meta.itemName(Component.text(filtered));
+            if (!original.equals(filtered) || renderColors) {
+                meta.itemName(renderer.renderInput(player, filtered, MessageRenderer.ColorTarget.ANVIL));
                 changed = true;
             }
         }

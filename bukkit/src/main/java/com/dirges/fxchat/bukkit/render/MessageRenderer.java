@@ -15,7 +15,6 @@ import java.util.Set;
 import java.util.UUID;
 
 public final class MessageRenderer {
-    public static final String COLOR_PERMISSION = "fxchat.color";
     private static final String PLAYER_TAG = "fxchat_player";
     private static final String SENDER_TAG = "fxchat_sender";
     private static final String TARGET_TAG = "fxchat_target";
@@ -35,7 +34,7 @@ public final class MessageRenderer {
     public RenderedMessage render(
             Player player, Settings settings, Settings.ChannelSettings channel, String message, boolean protectedInput
     ) {
-        PreparedBody prepared = prepareBody(player, message, protectedInput);
+        PreparedBody prepared = prepareBody(player, message);
         Component component = renderFormat(
                 player, settings, channel.id(), channel.format(), prepared.body(), null);
         return new RenderedMessage(
@@ -56,7 +55,7 @@ public final class MessageRenderer {
             String targetName,
             boolean protectedInput
     ) {
-        PreparedBody prepared = prepareBody(player, message, protectedInput);
+        PreparedBody prepared = prepareBody(player, message);
         return new PrivateRenderedMessage(
                 renderFormat(player, settings, "private", senderFormat, prepared.body(), targetName),
                 renderFormat(player, settings, "private", receiverFormat, prepared.body(), targetName),
@@ -67,16 +66,38 @@ public final class MessageRenderer {
         );
     }
 
-    private PreparedBody prepareBody(Player player, String message, boolean protectedInput) {
+    public Component renderInput(Player player, String message, ColorTarget target) {
+        return deserialize(prepareInput(player, message, target), TagResolver.empty());
+    }
+
+    public String prepareInput(Player player, String message, ColorTarget target) {
+        String result = message == null ? "" : message;
+        boolean legacy = hasColorPermission(player, target, "legacy");
+        boolean miniMessage = hasColorPermission(player, target, "minimessages");
+        if (!miniMessage) {
+            result = this.miniMessage.escapeTags(result);
+        }
+        if (legacy) {
+            return MessageColorParser.convert(result);
+        }
+        return MessageColorParser.neutralizeSectionSigns(result);
+    }
+
+    public boolean hasAnyColorPermission(Player player, ColorTarget target) {
+        return hasColorPermission(player, target, "legacy") || hasColorPermission(player, target, "minimessages");
+    }
+
+    public boolean hasColorPermission(Player player, ColorTarget target, String syntax) {
+        String base = "fxchat.color." + target.permissionSegment();
+        return player.hasPermission(base + ".*") || player.hasPermission(base + "." + syntax);
+    }
+
+    private PreparedBody prepareBody(Player player, String message) {
         String bodySource = message;
         if (papi != null) {
             bodySource = papi.expand(player, bodySource);
         }
-        if (player.hasPermission(COLOR_PERMISSION)) {
-            bodySource = MessageColorParser.convert(bodySource);
-        } else if (!protectedInput) {
-            bodySource = miniMessage.escapeTags(MessageColorParser.neutralizeSectionSigns(bodySource));
-        }
+        bodySource = prepareInput(player, bodySource, ColorTarget.CHAT);
 
         ChatFunctionService.PreparedMessage functionExpansion = functions.prepare(player, bodySource);
         TagResolver.Builder bodyResolvers = TagResolver.builder();
@@ -156,5 +177,21 @@ public final class MessageRenderer {
     }
 
     private record PreparedBody(ChatFunctionService.PreparedMessage expansion, Component body) {
+    }
+
+    public enum ColorTarget {
+        CHAT("chat"),
+        ANVIL("anvil"),
+        SIGN("sign");
+
+        private final String permissionSegment;
+
+        ColorTarget(String permissionSegment) {
+            this.permissionSegment = permissionSegment;
+        }
+
+        private String permissionSegment() {
+            return permissionSegment;
+        }
     }
 }

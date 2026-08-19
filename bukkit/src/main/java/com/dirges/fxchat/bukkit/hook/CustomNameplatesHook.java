@@ -30,19 +30,20 @@ public final class CustomNameplatesHook implements AutoCloseable {
         return new CustomNameplatesHook(api, manager);
     }
 
-    public void onPublicChat(Player player, String message, String channel, boolean allowFormatting) {
+    public void onPublicChat(Player player, String message, String channel, boolean allowMiniMessage, boolean allowLegacy) {
         if (closed || message == null || channel == null) {
             return;
         }
         CNPlayer customPlayer = api.getPlayer(player.getUniqueId());
         if (customPlayer != null && customPlayer.isOnline()) {
-            manager.onChat(customPlayer, allowFormatting ? message : literalBubbleText(message), channel);
+            manager.onChat(customPlayer, bubbleText(message, allowMiniMessage, allowLegacy), channel);
         }
     }
 
-    private static String literalBubbleText(String message) {
-        // ChatManager exposes only String input. Protect both MiniMessage tags and legacy ampersand codes.
-        return MINI_MESSAGE.escapeTags(message).replace("&", "&" + ZERO_WIDTH_SPACE);
+    private static String bubbleText(String message, boolean allowMiniMessage, boolean allowLegacy) {
+        String result = allowMiniMessage ? message : MINI_MESSAGE.escapeTags(message);
+        // ChatManager exposes only String input, so prevent it from interpreting unauthorized legacy codes.
+        return allowLegacy ? result : result.replace("&", "&" + ZERO_WIDTH_SPACE);
     }
 
     @Override
