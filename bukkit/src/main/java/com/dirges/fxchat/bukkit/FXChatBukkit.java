@@ -156,7 +156,7 @@ public final class FXChatBukkit extends JavaPlugin {
         muteService.start();
         privateSpyService = new PrivateSpyService(getDataFolder(), databaseSettings, scheduler, getLogger()::warning);
         privateSpyService.start();
-        ignoreService = new IgnoreService(getDataFolder(), scheduler, sessions, getLogger()::warning);
+        ignoreService = new IgnoreService(getDataFolder(), scheduler, sessions, messages, getLogger()::warning);
         FunctionSettings functionSettings = FunctionSettings.load(
                 new java.io.File(getDataFolder(), "functions.yml"), getLogger()::warning);
         mentionCompletions = new MentionCompletionService(

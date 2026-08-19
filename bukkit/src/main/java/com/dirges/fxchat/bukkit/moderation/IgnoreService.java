@@ -2,6 +2,7 @@ package com.dirges.fxchat.bukkit.moderation;
 
 import com.dirges.fxchat.bukkit.scheduler.SchedulerFacade;
 import com.dirges.fxchat.bukkit.player.PlayerSessionManager;
+import com.dirges.fxchat.bukkit.config.MessageService;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.registry.data.dialog.DialogBase;
 import io.papermc.paper.registry.data.dialog.DialogInstancesProvider;
@@ -40,16 +41,24 @@ public final class IgnoreService implements AutoCloseable {
     private final File guiFile;
     private final SchedulerFacade scheduler;
     private final PlayerSessionManager sessions;
+    private final MessageService messages;
     private final Consumer<String> warning;
     /** Owner UUID -> ignored target UUID and its last known display name. */
     private final ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, String>> ignored = new ConcurrentHashMap<>();
     private volatile GuiSettings gui = GuiSettings.defaults();
 
-    public IgnoreService(File dataFolder, SchedulerFacade scheduler, PlayerSessionManager sessions, Consumer<String> warning) {
+    public IgnoreService(
+            File dataFolder,
+            SchedulerFacade scheduler,
+            PlayerSessionManager sessions,
+            MessageService messages,
+            Consumer<String> warning
+    ) {
         file = new File(new File(dataFolder, "data"), "ignores.yml");
         guiFile = new File(dataFolder, "ignore-gui.yml");
         this.scheduler = scheduler;
         this.sessions = sessions;
+        this.messages = messages;
         this.warning = warning;
         load();
         reloadLayout();
@@ -101,7 +110,7 @@ public final class IgnoreService implements AutoCloseable {
         IgnoredPlayer target = holder.entry(slot);
         if (target == null || !event.isShiftClick() || !event.isRightClick()) return;
         remove(player.getUniqueId(), target.id());
-        player.sendMessage(Component.text("已取消屏蔽 " + target.name() + "。"));
+        messages.send(player, "ignore.removed", Map.of("player", target.name()));
         scheduler.runAtEntity(player, () -> openGui(player, holder.page()));
     }
 
@@ -111,11 +120,11 @@ public final class IgnoreService implements AutoCloseable {
         var input = provider.textBuilder("player", Component.text("玩家 ID")).width(300).maxLength(16).build();
         var saveAction = provider.register((response, audience) -> {
             String name = normalize(response.getText("player"));
-            if (!name.matches("[a-z0-9_]{1,16}")) { scheduler.runAtEntity(player, () -> player.sendMessage(Component.text("玩家 ID 无效。"))); return; }
+            if (!name.matches("[a-z0-9_]{1,16}")) { scheduler.runAtEntity(player, () -> messages.send(player, "ignore.invalid-player-id")); return; }
             PlayerSessionManager.OnlinePlayer target = sessions.onlineNameIndex().get(name);
-            if (target == null) { scheduler.runAtEntity(player, () -> player.sendMessage(Component.text("玩家不在线。"))); return; }
+            if (target == null) { scheduler.runAtEntity(player, () -> messages.send(player, "ignore.player-not-online")); return; }
             add(ownerId, target.id(), target.name());
-            scheduler.runAtEntity(player, () -> { player.sendMessage(Component.text("已屏蔽 " + target.name() + "。")); openGui(player); });
+            scheduler.runAtEntity(player, () -> { messages.send(player, "ignore.added", Map.of("player", target.name())); openGui(player); });
         }, ClickCallback.Options.builder().uses(1).lifetime(Duration.ofMinutes(5)).build());
         Dialog dialog = Dialog.create(factory -> factory.empty().base(provider.dialogBaseBuilder(Component.text("添加屏蔽玩家"))
                 .externalTitle(Component.text("FXChat 屏蔽列表")).body(List.of(provider.plainMessageDialogBody(Component.text("输入玩家 ID，保存后加入屏蔽列表。"))))

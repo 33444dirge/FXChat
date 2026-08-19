@@ -106,6 +106,12 @@ private:
       volume: 1
       pitch: 0.8
 
+ignore:
+  invalid-player-id: "<red>Invalid player ID.</red>"
+  player-not-online: "<red>That player is not online.</red>"
+  added: "<green>Ignored <white>{player}</white>.</green>"
+  removed: "<yellow>Stopped ignoring <white>{player}</white>.</yellow>"
+
 mute:
   usage: "<yellow>Usage: /mute <player> <reason> <duration></yellow>"
   no-permission: "<red>You do not have permission to mute players.</red>"
