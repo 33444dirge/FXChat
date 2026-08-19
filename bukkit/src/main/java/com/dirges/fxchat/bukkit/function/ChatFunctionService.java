@@ -489,7 +489,12 @@ public final class ChatFunctionService implements AutoCloseable {
             CustomFunctionSettings.Display display,
             String value
     ) {
-        return deserializeTemplate(customTemplate(sender, display.text(), value));
+        String template = customTemplate(sender, display.text(), value);
+        try {
+            return miniMessage.deserialize(template);
+        } catch (RuntimeException exception) {
+            return Component.text(template);
+        }
     }
 
     private String customTemplate(Player sender, String template, String value) {
