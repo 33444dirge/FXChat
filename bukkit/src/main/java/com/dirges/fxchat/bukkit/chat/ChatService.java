@@ -407,7 +407,7 @@ public final class ChatService implements AutoCloseable {
         double deliveredChannelRange = channel.range();
         seenMessages.markIfNew(messageId);
         sessions.broadcast(scheduler, component, channel, snapshot,
-                (recipient, ignoredOrigin) -> !ignoreService.ignores(recipient.getUniqueId(), snapshot.name()),
+                (recipient, ignoredOrigin) -> !ignoreService.ignores(recipient.getUniqueId(), snapshot.id()),
                 recipient -> functions.notifyMention(
                 recipient,
                 player.getUniqueId(),
@@ -467,7 +467,7 @@ public final class ChatService implements AutoCloseable {
         try {
             Component component = GsonComponentSerializer.gson().deserialize(packet.componentJson());
             sessions.broadcast(scheduler, component, channel, null,
-                    (recipient, ignoredOrigin) -> !ignoreService.ignores(recipient.getUniqueId(), packet.senderName()),
+                    (recipient, ignoredOrigin) -> !ignoreService.ignores(recipient.getUniqueId(), packet.senderId()),
                     recipient -> functions.notifyMention(
                     recipient,
                     packet.senderId(),
@@ -494,7 +494,7 @@ public final class ChatService implements AutoCloseable {
             String senderName = packet.senderName();
             if (targetLocal) {
                 sessions.runAt(packet.targetId(), scheduler, target -> {
-                    if (ignoreService.ignores(target.getUniqueId(), senderName)) {
+                    if (ignoreService.ignores(target.getUniqueId(), packet.senderId())) {
                         return;
                     }
                     target.sendMessage(receiverComponent);
@@ -552,7 +552,7 @@ public final class ChatService implements AutoCloseable {
             messages.send(sender, "private.self");
             return;
         }
-        if (ignoreService.ignores(target.id(), sender.getName())) {
+        if (ignoreService.ignores(target.id(), sender.getUniqueId())) {
             messages.send(sender, "private.player-ignored");
             return;
         }

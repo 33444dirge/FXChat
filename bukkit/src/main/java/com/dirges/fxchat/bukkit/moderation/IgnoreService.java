@@ -1,6 +1,7 @@
 package com.dirges.fxchat.bukkit.moderation;
 
 import com.dirges.fxchat.bukkit.scheduler.SchedulerFacade;
+import com.dirges.fxchat.bukkit.player.PlayerSessionManager;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.registry.data.dialog.DialogBase;
 import io.papermc.paper.registry.data.dialog.DialogInstancesProvider;
@@ -28,7 +29,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -39,27 +39,37 @@ public final class IgnoreService implements AutoCloseable {
     private final File file;
     private final File guiFile;
     private final SchedulerFacade scheduler;
+    private final PlayerSessionManager sessions;
     private final Consumer<String> warning;
-    private final ConcurrentHashMap<UUID, Set<String>> ignored = new ConcurrentHashMap<>();
+    /** Owner UUID -> ignored target UUID and its last known display name. */
+    private final ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, String>> ignored = new ConcurrentHashMap<>();
     private volatile GuiSettings gui = GuiSettings.defaults();
 
-    public IgnoreService(File dataFolder, SchedulerFacade scheduler, Consumer<String> warning) {
+    public IgnoreService(File dataFolder, SchedulerFacade scheduler, PlayerSessionManager sessions, Consumer<String> warning) {
         file = new File(new File(dataFolder, "data"), "ignores.yml");
         guiFile = new File(dataFolder, "ignore-gui.yml");
         this.scheduler = scheduler;
+        this.sessions = sessions;
         this.warning = warning;
         load();
         reloadLayout();
     }
 
     public void reloadLayout() { gui = GuiSettings.load(guiFile, warning); }
-    public List<String> list(UUID playerId) { return ignored.getOrDefault(playerId, Set.of()).stream().sorted().toList(); }
+    public List<IgnoredPlayer> list(UUID playerId) {
+        Map<UUID, String> targets = ignored.get(playerId);
+        if (targets == null) return List.of();
+        return targets.entrySet().stream()
+                .map(entry -> new IgnoredPlayer(entry.getKey(), entry.getValue()))
+                .sorted(Comparator.comparing(IgnoredPlayer::name, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+    }
     public void openGui(Player player) { openGui(player, 0); }
 
     private void openGui(Player player, int requestedPage) {
         GuiSettings settings = gui;
-        List<String> names = list(player.getUniqueId());
-        int pages = Math.max(1, (names.size() + settings.entries().size() - 1) / settings.entries().size());
+        List<IgnoredPlayer> targets = list(player.getUniqueId());
+        int pages = Math.max(1, (targets.size() + settings.entries().size() - 1) / settings.entries().size());
         int page = Math.clamp(requestedPage, 0, pages - 1);
         Holder holder = new Holder(player.getUniqueId(), page, pages);
         Inventory inventory = Bukkit.createInventory(holder, settings.size(), component(settings.title(), page, pages, ""));
@@ -69,11 +79,11 @@ public final class IgnoreService implements AutoCloseable {
         for (int slot : settings.previous()) inventory.setItem(slot, item(page > 0 ? settings.previousItem() : settings.previousDisabled(), page, pages, ""));
         for (int slot : settings.next()) inventory.setItem(slot, item(page + 1 < pages ? settings.nextItem() : settings.nextDisabled(), page, pages, ""));
         int offset = page * settings.entries().size();
-        for (int index = 0; index < settings.entries().size() && offset + index < names.size(); index++) {
-            String name = names.get(offset + index);
+        for (int index = 0; index < settings.entries().size() && offset + index < targets.size(); index++) {
+            IgnoredPlayer target = targets.get(offset + index);
             int slot = settings.entries().get(index);
-            holder.setEntry(slot, name);
-            inventory.setItem(slot, item(settings.entry(), page, pages, name));
+            holder.setEntry(slot, target);
+            inventory.setItem(slot, item(settings.entry(), page, pages, target.name()));
         }
         player.openInventory(inventory);
     }
@@ -88,21 +98,24 @@ public final class IgnoreService implements AutoCloseable {
         if (settings.add().contains(slot)) { player.closeInventory(); openAddDialog(player); return; }
         if (settings.previous().contains(slot) && holder.page() > 0) { openGui(player, holder.page() - 1); return; }
         if (settings.next().contains(slot) && holder.page() + 1 < holder.pages()) { openGui(player, holder.page() + 1); return; }
-        String name = holder.entry(slot);
-        if (name == null || !event.isShiftClick() || !event.isRightClick()) return;
-        remove(player.getUniqueId(), name);
-        player.sendMessage(Component.text("已取消屏蔽 " + name + "。"));
+        IgnoredPlayer target = holder.entry(slot);
+        if (target == null || !event.isShiftClick() || !event.isRightClick()) return;
+        remove(player.getUniqueId(), target.id());
+        player.sendMessage(Component.text("已取消屏蔽 " + target.name() + "。"));
         scheduler.runAtEntity(player, () -> openGui(player, holder.page()));
     }
 
     private void openAddDialog(Player player) {
+        UUID ownerId = player.getUniqueId();
         DialogInstancesProvider provider = DialogInstancesProvider.instance();
         var input = provider.textBuilder("player", Component.text("玩家 ID")).width(300).maxLength(16).build();
         var saveAction = provider.register((response, audience) -> {
             String name = normalize(response.getText("player"));
             if (!name.matches("[a-z0-9_]{1,16}")) { scheduler.runAtEntity(player, () -> player.sendMessage(Component.text("玩家 ID 无效。"))); return; }
-            add(player.getUniqueId(), name);
-            scheduler.runAtEntity(player, () -> { player.sendMessage(Component.text("已屏蔽 " + name + "。")); openGui(player); });
+            PlayerSessionManager.OnlinePlayer target = sessions.onlineNameIndex().get(name);
+            if (target == null) { scheduler.runAtEntity(player, () -> player.sendMessage(Component.text("玩家不在线。"))); return; }
+            add(ownerId, target.id(), target.name());
+            scheduler.runAtEntity(player, () -> { player.sendMessage(Component.text("已屏蔽 " + target.name() + "。")); openGui(player); });
         }, ClickCallback.Options.builder().uses(1).lifetime(Duration.ofMinutes(5)).build());
         Dialog dialog = Dialog.create(factory -> factory.empty().base(provider.dialogBaseBuilder(Component.text("添加屏蔽玩家"))
                 .externalTitle(Component.text("FXChat 屏蔽列表")).body(List.of(provider.plainMessageDialogBody(Component.text("输入玩家 ID，保存后加入屏蔽列表。"))))
@@ -111,26 +124,53 @@ public final class IgnoreService implements AutoCloseable {
         player.showDialog(dialog);
     }
 
-    public boolean ignores(UUID recipientId, String senderName) { return senderName != null && !senderName.isBlank() && ignored.getOrDefault(recipientId, Set.of()).contains(normalize(senderName)); }
-    private void add(UUID playerId, String name) { ignored.computeIfAbsent(playerId, unused -> ConcurrentHashMap.newKeySet()).add(name); saveAsync(); }
-    private void remove(UUID playerId, String name) { Set<String> names = ignored.get(playerId); if (names == null) return; names.remove(normalize(name)); if (names.isEmpty()) ignored.remove(playerId, names); saveAsync(); }
+    public boolean ignores(UUID recipientId, UUID senderId) {
+        if (recipientId == null || senderId == null) return false;
+        Map<UUID, String> targets = ignored.get(recipientId);
+        return targets != null && targets.containsKey(senderId);
+    }
+    private void add(UUID playerId, UUID targetId, String targetName) {
+        ignored.computeIfAbsent(playerId, unused -> new ConcurrentHashMap<>()).put(targetId, targetName);
+        saveAsync();
+    }
+    private void remove(UUID playerId, UUID targetId) {
+        ConcurrentHashMap<UUID, String> targets = ignored.get(playerId);
+        if (targets == null) return;
+        targets.remove(targetId);
+        if (targets.isEmpty()) ignored.remove(playerId, targets);
+        saveAsync();
+    }
 
     private void load() {
         if (!file.isFile()) return;
         YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
         for (String key : config.getKeys(false)) try {
-            UUID id = UUID.fromString(key); Set<String> names = ConcurrentHashMap.newKeySet();
-            for (String name : config.getStringList(key)) { String normalized = normalize(name); if (normalized.matches("[a-z0-9_]{1,16}")) names.add(normalized); }
-            if (!names.isEmpty()) ignored.put(id, names);
+            UUID id = UUID.fromString(key);
+            ConfigurationSection section = config.getConfigurationSection(key);
+            if (section == null) {
+                if (!config.getStringList(key).isEmpty()) {
+                    warning.accept("Dropped legacy name-based ignore entries for " + key + "; re-add those players while they are online.");
+                }
+                continue;
+            }
+            ConcurrentHashMap<UUID, String> targets = new ConcurrentHashMap<>();
+            for (String targetKey : section.getKeys(false)) try {
+                UUID targetId = UUID.fromString(targetKey);
+                String name = section.getString(targetKey, targetId.toString());
+                targets.put(targetId, name == null || name.isBlank() ? targetId.toString() : name);
+            } catch (IllegalArgumentException exception) { warning.accept("Ignored invalid ignored-player UUID: " + targetKey); }
+            if (!targets.isEmpty()) ignored.put(id, targets);
         } catch (IllegalArgumentException exception) { warning.accept("Ignored invalid ignore-list UUID: " + key); }
     }
 
     private void saveAsync() {
-        Map<UUID, List<String>> snapshot = new HashMap<>();
-        ignored.forEach((id, names) -> snapshot.put(id, names.stream().sorted().toList()));
+        Map<UUID, Map<UUID, String>> snapshot = new HashMap<>();
+        ignored.forEach((id, targets) -> snapshot.put(id, Map.copyOf(targets)));
         scheduler.runAsync(() -> {
             YamlConfiguration config = new YamlConfiguration();
-            snapshot.entrySet().stream().sorted(Comparator.comparing(entry -> entry.getKey().toString())).forEach(entry -> config.set(entry.getKey().toString(), entry.getValue()));
+            snapshot.entrySet().stream().sorted(Comparator.comparing(entry -> entry.getKey().toString())).forEach(entry ->
+                    entry.getValue().entrySet().stream().sorted(Comparator.comparing(target -> target.getKey().toString())).forEach(target ->
+                            config.set(entry.getKey() + "." + target.getKey(), target.getValue())));
             try {
                 File parent = file.getParentFile();
                 if (parent != null && !parent.isDirectory() && !parent.mkdirs() && !parent.isDirectory()) throw new IOException("Could not create " + parent);
@@ -153,12 +193,14 @@ public final class IgnoreService implements AutoCloseable {
     @Override public void close() { ignored.clear(); }
 
     public static final class Holder implements InventoryHolder {
-        private final UUID owner; private final int page; private final int pages; private final Map<Integer, String> entries = new HashMap<>(); private Inventory inventory;
+        private final UUID owner; private final int page; private final int pages; private final Map<Integer, IgnoredPlayer> entries = new HashMap<>(); private Inventory inventory;
         private Holder(UUID owner, int page, int pages) { this.owner = owner; this.page = page; this.pages = pages; }
-        private void bind(Inventory inventory) { this.inventory = inventory; } private void setEntry(int slot, String name) { entries.put(slot, name); }
-        private UUID owner() { return owner; } private int page() { return page; } private int pages() { return pages; } private String entry(int slot) { return entries.get(slot); }
+        private void bind(Inventory inventory) { this.inventory = inventory; } private void setEntry(int slot, IgnoredPlayer target) { entries.put(slot, target); }
+        private UUID owner() { return owner; } private int page() { return page; } private int pages() { return pages; } private IgnoredPlayer entry(int slot) { return entries.get(slot); }
         @Override public Inventory getInventory() { return inventory; }
     }
+
+    public record IgnoredPlayer(UUID id, String name) { }
 
     private record ItemSettings(Material material, String name, List<String> lore) { }
     private record GuiSettings(String title, int size, List<Integer> fillers, List<Integer> entries, List<Integer> add, List<Integer> previous, List<Integer> next,
