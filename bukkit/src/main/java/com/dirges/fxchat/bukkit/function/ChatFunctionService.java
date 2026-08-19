@@ -344,7 +344,7 @@ public final class ChatFunctionService implements AutoCloseable {
         do {
             output.append(source, end, matcher.start());
             String key = addToken(tokens, mentionAllComponent());
-            output.append('<').append(key).append('>');
+            output.append(tokenMarker(key));
             end = matcher.end();
         } while (matcher.find());
         output.append(source, end, source.length());
@@ -392,7 +392,7 @@ public final class ChatFunctionService implements AutoCloseable {
         for (MentionMatch match : matches) {
             output.append(source, end, match.start());
             String key = addToken(tokens, mentionComponent(match.target().name()));
-            output.append('<').append(key).append('>');
+            output.append(tokenMarker(key));
             mentionedPlayers.add(match.target().id());
             end = match.end();
         }
@@ -431,7 +431,7 @@ public final class ChatFunctionService implements AutoCloseable {
                 component = itemComponent(sender, item, config, wireShowcases);
             }
             String key = addToken(tokens, component);
-            output.append('<').append(key).append('>');
+            output.append(tokenMarker(key));
             end = matcher.end();
         } while (matcher.find());
         output.append(source, end, source.length());
@@ -477,7 +477,7 @@ public final class ChatFunctionService implements AutoCloseable {
                 }
             }
             String key = addToken(tokens, customComponent(sender, rule.display(), value));
-            output.append('<').append(key).append('>');
+            output.append(tokenMarker(key));
             end = matcher.end();
         } while (matcher.find());
         output.append(source, end, source.length());
@@ -556,7 +556,7 @@ public final class ChatFunctionService implements AutoCloseable {
         int end = 0;
         do {
             output.append(source, end, matcher.start());
-            output.append('<').append(key).append('>');
+            output.append(tokenMarker(key));
             end = matcher.end();
         } while (matcher.find());
         output.append(source, end, source.length());
@@ -589,7 +589,7 @@ public final class ChatFunctionService implements AutoCloseable {
             int end = 0;
             do {
                 output.append(source, end, matcher.start());
-                output.append('<').append(key).append('>');
+                output.append(tokenMarker(key));
                 end = matcher.end();
             } while (matcher.find());
             output.append(source, end, source.length());
@@ -629,7 +629,7 @@ public final class ChatFunctionService implements AutoCloseable {
         int end = 0;
         do {
             output.append(source, end, matcher.start());
-            output.append('<').append(key).append('>');
+            output.append(tokenMarker(key));
             end = matcher.end();
         } while (matcher.find());
         output.append(source, end, source.length());
@@ -921,6 +921,10 @@ public final class ChatFunctionService implements AutoCloseable {
         String key = "fxfunction_" + tokens.size();
         tokens.add(new Token(key, component));
         return key;
+    }
+
+    public static String tokenMarker(String key) {
+        return "\u0001" + key + "\u0002";
     }
 
     public record Token(String key, Component component) {

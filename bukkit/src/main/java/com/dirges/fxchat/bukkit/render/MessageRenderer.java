@@ -122,16 +122,17 @@ public final class MessageRenderer {
         if (papi != null) {
             bodySource = papi.expand(player, bodySource);
         }
-        bodySource = prepareInput(player, bodySource, ColorTarget.CHAT);
-
+        // Match functions before message-format handling, like TrChat's internal variable pipeline.
         ChatFunctionService.PreparedMessage functionExpansion = functions.prepare(player, bodySource);
+        String parsedSource = prepareInput(player, functionExpansion.source(), ColorTarget.CHAT);
         TagResolver.Builder bodyResolvers = TagResolver.builder();
         for (ChatFunctionService.Token token : functionExpansion.tokens()) {
             bodyResolvers = bodyResolvers.resolver(Placeholder.component(token.key(), token.component()));
+            parsedSource = parsedSource.replace(ChatFunctionService.tokenMarker(token.key()), "<" + token.key() + ">");
         }
         return new PreparedBody(
                 functionExpansion,
-                deserialize(functionExpansion.source(), bodyResolvers.build())
+                deserialize(parsedSource, bodyResolvers.build())
         );
     }
 
