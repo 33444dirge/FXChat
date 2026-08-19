@@ -107,7 +107,6 @@ private:
       pitch: 0.8
 
 ignore:
-  invalid-player-id: "<red>玩家 ID 无效。</red>"
   player-not-online: "<red>该玩家不在线。</red>"
   added: "<green>已屏蔽 <white>{player}</white>。</green>"
   removed: "<yellow>已取消屏蔽 <white>{player}</white>。</yellow>"

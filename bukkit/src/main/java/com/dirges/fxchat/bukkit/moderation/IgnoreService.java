@@ -120,7 +120,6 @@ public final class IgnoreService implements AutoCloseable {
         var input = provider.textBuilder("player", Component.text("玩家 ID")).width(300).maxLength(16).build();
         var saveAction = provider.register((response, audience) -> {
             String name = normalize(response.getText("player"));
-            if (!name.matches("[a-z0-9_]{1,16}")) { scheduler.runAtEntity(player, () -> messages.send(player, "ignore.invalid-player-id")); return; }
             PlayerSessionManager.OnlinePlayer target = sessions.onlineNameIndex().get(name);
             if (target == null) { scheduler.runAtEntity(player, () -> messages.send(player, "ignore.player-not-online")); return; }
             add(ownerId, target.id(), target.name());
