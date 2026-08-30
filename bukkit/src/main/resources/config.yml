@@ -1,6 +1,10 @@
 # Locale file name under plugins/FXChat/lang/.
 language: zh_CN
 
+bstats:
+  # Set to false to disable anonymous bStats metrics.
+  enabled: true
+
 chat:
   default-channel: 公开
   private-channel: 私聊

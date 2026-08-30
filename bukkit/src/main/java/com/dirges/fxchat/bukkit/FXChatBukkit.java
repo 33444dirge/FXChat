@@ -39,6 +39,7 @@ import org.bukkit.command.CommandMap;
 import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bstats.bukkit.Metrics;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -46,6 +47,8 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 
 public final class FXChatBukkit extends JavaPlugin {
+    private static final int BSTATS_PLUGIN_ID = 33734;
+
     private SchedulerFacade scheduler;
     private SettingsLoader settingsLoader;
     private MessageService messages;
@@ -74,6 +77,7 @@ public final class FXChatBukkit extends JavaPlugin {
             throw new IllegalStateException("Could not create plugin data folder: " + getDataFolder());
         }
         saveDefaultConfigIfMissing();
+        startBStats();
         List.of(
                 "proxy.yml",
                 "database.yml",
@@ -267,6 +271,15 @@ public final class FXChatBukkit extends JavaPlugin {
         if (!file.isFile()) {
             saveDefaultConfig();
         }
+    }
+
+    private void startBStats() {
+        if (!getConfig().getBoolean("bstats.enabled", true)) {
+            getLogger().info("bStats metrics are disabled in config.yml.");
+            return;
+        }
+        new Metrics(this, BSTATS_PLUGIN_ID);
+        getLogger().info("bStats metrics enabled.");
     }
 
     public Settings settings() {
