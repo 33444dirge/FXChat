@@ -60,6 +60,12 @@ public final class PlayerSessionManager {
         selectedChannels.put(playerId, channel);
     }
 
+    public void restoreChannel(UUID playerId, String channel) {
+        if (channel != null && !channel.isBlank()) {
+            selectedChannels.putIfAbsent(playerId, channel);
+        }
+    }
+
     public OnlinePlayer privateTarget(UUID playerId) {
         return privateTargets.get(playerId);
     }

@@ -11,7 +11,9 @@ public final class ConfigCommand extends Command {
         CHANNEL,
         PRIVATE,
         REPLY,
-        MUTE
+        MUTE,
+        MUTE_ALL,
+        TRC
     }
 
     private final FXChatCommand handler;
@@ -30,6 +32,8 @@ public final class ConfigCommand extends Command {
             case PRIVATE -> handler.onPrivateCommand(sender, args);
             case REPLY -> handler.onReplyCommand(sender, args);
             case MUTE -> handler.onMuteCommand(sender, args);
+            case MUTE_ALL -> handler.onMuteAllCommand(sender, args);
+            case TRC -> handler.onTrcCommand(sender, args);
         };
     }
 
@@ -40,6 +44,12 @@ public final class ConfigCommand extends Command {
         }
         if (kind == Kind.MUTE) {
             return handler.onMuteTabComplete(args);
+        }
+        if (kind == Kind.MUTE_ALL) {
+            return List.of("off");
+        }
+        if (kind == Kind.TRC) {
+            return List.of("send", "sendproxy");
         }
         return handler.onPrivateTabComplete(args, kind == Kind.REPLY);
     }

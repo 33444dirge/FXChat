@@ -74,6 +74,10 @@ public final class MessageService {
         return component(key, Map.of());
     }
 
+    public Component componentText(String text) {
+        return deserialize(text == null ? "" : text);
+    }
+
     public Component component(String key, Map<String, ?> replacements) {
         FileConfiguration configuration = messages;
         List<Action> actions = actions(configuration, key);

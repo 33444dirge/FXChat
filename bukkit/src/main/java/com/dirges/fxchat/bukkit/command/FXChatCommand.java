@@ -8,11 +8,13 @@ import com.dirges.fxchat.bukkit.function.ChatFunctionService;
 import com.dirges.fxchat.bukkit.function.ShowcaseStore;
 import com.dirges.fxchat.bukkit.moderation.MuteRecord;
 import com.dirges.fxchat.bukkit.moderation.MuteService;
+import com.dirges.fxchat.bukkit.moderation.GlobalMuteRecord;
 import com.dirges.fxchat.bukkit.moderation.IgnoreService;
 import com.dirges.fxchat.bukkit.player.PlayerSessionManager;
 import com.dirges.fxchat.bukkit.proxy.BukkitProxyTransport;
 import com.dirges.fxchat.bukkit.scheduler.SchedulerFacade;
 import com.dirges.fxchat.common.protocol.MutePacket;
+import com.dirges.fxchat.common.protocol.SystemMessagePacket;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -64,6 +66,9 @@ public final class FXChatCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(@NonNull CommandSender sender, @NonNull Command command, @NonNull String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("trc")) {
+            return onTrcCommand(sender, args);
+        }
         if (args.length == 0) {
             messages.send(sender, "command.help");
             return true;
@@ -86,7 +91,64 @@ public final class FXChatCommand implements CommandExecutor, TabCompleter {
             case "view" -> view(sender, args);
             case "spy" -> privateSpy(sender, args);
             case "ignore" -> openIgnoreGui(sender);
+            case "muteall" -> onMuteAllCommand(sender, Arrays.copyOfRange(args, 1, args.length));
             default -> messages.send(sender, "command.unknown");
+        }
+        return true;
+    }
+
+    public boolean onTrcCommand(CommandSender sender, String[] args) {
+        boolean proxy = args.length > 0 && args[0].equalsIgnoreCase("sendproxy");
+        if (!sender.hasPermission("fxchat.trc")
+                && !sender.hasPermission(proxy ? "fxchat.trc.sendproxy" : "fxchat.trc.send")) {
+            messages.send(sender, "trc.no-permission");
+            return true;
+        }
+        if (args.length < 2) {
+            messages.send(sender, "trc.usage");
+            return true;
+        }
+        proxy = args[0].equalsIgnoreCase("sendproxy");
+        boolean send = args[0].equalsIgnoreCase("send");
+        if (!proxy && !send) {
+            messages.send(sender, "trc.usage");
+            return true;
+        }
+        UUID targetId = null;
+        int textStart = 1;
+        if (send && !args[1].equals("*")) {
+            PlayerSessionManager.OnlinePlayer target = sessions.onlineNameIndex()
+                    .get(args[1].toLowerCase(Locale.ROOT));
+            if (target == null) {
+                messages.send(sender, "trc.player-not-found");
+                return true;
+            }
+            if (!sessions.isLocal(target.id())) {
+                messages.send(sender, "trc.player-not-found");
+                return true;
+            }
+            targetId = target.id();
+            textStart = 2;
+        } else if (send) {
+            textStart = 2;
+        }
+        if (args.length <= textStart) {
+            messages.send(sender, "trc.usage");
+            return true;
+        }
+        String raw = String.join(" ", Arrays.copyOfRange(args, textStart, args.length));
+        try {
+            SystemMessagePacket packet = new SystemMessagePacket(UUID.randomUUID(), System.currentTimeMillis(),
+                    plugin.settings().serverName(), targetId, raw);
+            if (proxy) {
+                chatService.sendSystemMessage(packet);
+                scheduler.runGlobal(() -> Bukkit.getOnlinePlayers().stream().findFirst().ifPresent(carrier ->
+                        scheduler.runAtEntity(carrier, () -> transport.send(carrier, packet))));
+            } else {
+                chatService.sendSystemMessage(packet);
+            }
+        } catch (RuntimeException exception) {
+            messages.send(sender, "trc.invalid-message");
         }
         return true;
     }
@@ -146,6 +208,9 @@ public final class FXChatCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         if (args.length == 0) {
+            if (chatService.exitPrivateChannel(player)) {
+                return true;
+            }
             messages.send(sender, "private.player-required");
             return true;
         }
@@ -253,6 +318,52 @@ public final class FXChatCommand implements CommandExecutor, TabCompleter {
                 ignored -> sendMuteResult(sender)
         );
         return true;
+    }
+
+    public boolean onMuteAllCommand(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("fxchat.muteall")) {
+            messages.send(sender, "muteall.no-permission");
+            return true;
+        }
+        if (args.length == 1 && args[0].equalsIgnoreCase("off")) {
+            muteService.clearGlobal(
+                    () -> sendGlobalMuteResult(sender, "muteall.disabled"),
+                    ignored -> sendGlobalMuteResult(sender, "muteall.database-error"));
+            return true;
+        }
+        if (args.length < 1) {
+            messages.send(sender, "muteall.usage");
+            return true;
+        }
+        long now = System.currentTimeMillis();
+        MuteService.DurationSpec duration = MuteService.parseDuration(args[0], now);
+        if (duration == null) {
+            messages.send(sender, "muteall.invalid-duration");
+            return true;
+        }
+        String reason = args.length == 1 ? "全服禁言" : String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
+        if (reason.length() > 512) {
+            messages.send(sender, "muteall.reason-too-long");
+            return true;
+        }
+        GlobalMuteRecord record = new GlobalMuteRecord(reason, sender.getName(), now, duration.expiresAt());
+        muteService.saveGlobal(record,
+                () -> sendGlobalMuteResult(sender, "muteall.enabled", Map.of(
+                        "reason", record.reason(),
+                        "duration", MuteService.remaining(record.expiresAt(), record.mutedAt()))),
+                ignored -> sendGlobalMuteResult(sender, "muteall.database-error"));
+        return true;
+    }
+
+    private void sendGlobalMuteResult(CommandSender sender, String key) {
+        sendGlobalMuteResult(sender, key, Map.of());
+    }
+
+    private void sendGlobalMuteResult(CommandSender sender, String key, Map<String, ?> replacements) {
+        scheduler.runGlobal(() -> {
+            if (sender instanceof Player player) scheduler.runAtEntity(player, () -> messages.send(player, key, replacements));
+            else messages.send(sender, key, replacements);
+        });
     }
 
     private void completeMute(CommandSender sender, MuteRecord record) {
@@ -413,6 +524,20 @@ public final class FXChatCommand implements CommandExecutor, TabCompleter {
         if (commandName.equals("mute")) {
             return onMuteTabComplete(args);
         }
+        if (commandName.equals("muteall")) {
+            return args.length == 1 ? List.of("off") : List.of();
+        }
+        if (commandName.equals("trc")) {
+            if (args.length == 1) return List.of("send", "sendproxy");
+            if (args.length == 2 && args[0].equalsIgnoreCase("send")) {
+                return Stream.concat(Stream.of("*"), sessions.onlineNameIndex().values().stream()
+                                .filter(value -> sessions.isLocal(value.id()))
+                                .map(PlayerSessionManager.OnlinePlayer::name))
+                        .filter(value -> value.toLowerCase(Locale.ROOT).startsWith(args[1].toLowerCase(Locale.ROOT)))
+                        .distinct().toList();
+            }
+            return List.of();
+        }
         if (commandName.equals("msg") || commandName.equals("tell") || commandName.equals("w")) {
             return onPrivateTabComplete(args, false);
         }
@@ -425,7 +550,7 @@ public final class FXChatCommand implements CommandExecutor, TabCompleter {
             return List.of();
         }
         if (args.length == 1) {
-            return Stream.of("channel", "help", "reload", "version", "view", "spy", "ignore", "sudo")
+            return Stream.of("channel", "help", "reload", "version", "view", "spy", "ignore", "muteall", "sudo")
                     .filter(value -> value.startsWith(args[0].toLowerCase(Locale.ROOT)))
                     .toList();
         }

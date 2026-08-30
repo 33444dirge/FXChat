@@ -10,6 +10,7 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.entity.Player;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -37,7 +38,7 @@ public final class MessageRenderer {
     ) {
         PreparedBody prepared = prepareBody(player, message);
         Component component = renderFormat(
-                player, settings, channel.id(), channel.format(), prepared.body(), null);
+                player, settings, channel.id(), resolveFormat(player, channel), prepared.body(), null);
         return new RenderedMessage(
                 component,
                 prepared.expansion().mentionedPlayers(),
@@ -134,6 +135,36 @@ public final class MessageRenderer {
                 functionExpansion,
                 deserialize(parsedSource, bodyResolvers.build())
         );
+    }
+
+    private String resolveFormat(Player player, Settings.ChannelSettings channel) {
+        List<Settings.FormatRule> rules = channel.dynamicFormats();
+        if (rules.isEmpty()) {
+            return channel.format();
+        }
+        String worldName = player.getWorld().getName();
+        for (Settings.FormatRule rule : rules) {
+            if (matches(rule, player, worldName)) {
+                if (!rule.format().isBlank()) {
+                    return rule.format();
+                }
+                return rule.prefix() + channel.format() + rule.suffix();
+            }
+        }
+        return channel.format();
+    }
+
+    private static boolean matches(Settings.FormatRule rule, Player player, String worldName) {
+        if (!rule.worlds().isEmpty()
+                && rule.worlds().stream().noneMatch(name -> name.equalsIgnoreCase(worldName))) {
+            return false;
+        }
+        for (String permission : rule.permissions()) {
+            if (!player.hasPermission(permission)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private Component renderFormat(

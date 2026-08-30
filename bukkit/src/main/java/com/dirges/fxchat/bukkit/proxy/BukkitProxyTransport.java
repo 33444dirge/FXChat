@@ -6,6 +6,7 @@ import com.dirges.fxchat.common.protocol.DirectoryPacket;
 import com.dirges.fxchat.common.protocol.PacketCodec;
 import com.dirges.fxchat.common.protocol.PrivateMessagePacket;
 import com.dirges.fxchat.common.protocol.MutePacket;
+import com.dirges.fxchat.common.protocol.SystemMessagePacket;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jspecify.annotations.NonNull;
@@ -57,6 +58,10 @@ public final class BukkitProxyTransport implements PluginMessageListener, AutoCl
         }
     }
 
+    public void send(Player carrier, SystemMessagePacket packet) {
+        if (enabled) carrier.sendPluginMessage(plugin, CHANNEL, PacketCodec.encode(packet));
+    }
+
     @Override
     public void onPluginMessageReceived(@NonNull String channel, @NonNull Player carrier, byte @NonNull [] data) {
         if (!CHANNEL.equals(channel)) {
@@ -65,7 +70,7 @@ public final class BukkitProxyTransport implements PluginMessageListener, AutoCl
         try {
             Object packet = PacketCodec.decodePacket(data);
             if (packet instanceof ChatPacket || packet instanceof PrivateMessagePacket
-                    || packet instanceof MutePacket) {
+                    || packet instanceof MutePacket || packet instanceof SystemMessagePacket) {
                 receiver.accept(packet);
             } else if (packet instanceof DirectoryPacket directoryPacket) {
                 directoryReceiver.accept(directoryPacket);

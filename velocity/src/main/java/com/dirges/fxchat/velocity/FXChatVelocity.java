@@ -5,6 +5,7 @@ import com.dirges.fxchat.common.protocol.DirectoryPacket;
 import com.dirges.fxchat.common.protocol.PacketCodec;
 import com.dirges.fxchat.common.protocol.PrivateMessagePacket;
 import com.dirges.fxchat.common.protocol.MutePacket;
+import com.dirges.fxchat.common.protocol.SystemMessagePacket;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.PluginMessageEvent;
 import com.velocitypowered.api.event.connection.PostLoginEvent;
@@ -150,6 +151,10 @@ public final class FXChatVelocity {
                         received.expiresAt()
                 );
                 forward(packet, origin);
+            } else if (decoded instanceof SystemMessagePacket received) {
+                SystemMessagePacket packet = new SystemMessagePacket(
+                        received.messageId(), received.createdAt(), origin, received.targetId(), received.message());
+                forward(packet, origin);
             }
         } catch (IOException | RuntimeException exception) {
             logger.warn("Dropped malformed FXChat backend packet", exception);
@@ -218,6 +223,20 @@ public final class FXChatVelocity {
             if (server.getServerInfo().getName().equalsIgnoreCase(originServer)) {
                 continue;
             }
+            server.sendPluginMessage(CHANNEL, data);
+        }
+    }
+
+    private void forward(SystemMessagePacket packet, String originServer) {
+        byte[] data;
+        try {
+            data = PacketCodec.encode(packet);
+        } catch (RuntimeException exception) {
+            logger.warn("Could not encode FXChat system message for forwarding", exception);
+            return;
+        }
+        for (RegisteredServer server : proxy.getAllServers()) {
+            if (server.getServerInfo().getName().equalsIgnoreCase(originServer)) continue;
             server.sendPluginMessage(CHANNEL, data);
         }
     }

@@ -11,6 +11,9 @@ command:
     <gray>/fxchat spy [on|off] - 切换私聊监听模式</gray>
     <gray>/fxchat ignore - 打开屏蔽列表 Dialog</gray>
     <gray>/mute [玩家] [原因] [时长] - 禁言玩家</gray>
+    <gray>/muteall [时长] [原因] - 全服禁言，使用 off 解除</gray>
+    <gray>/trc send <玩家ID/*> <文本> - 发送 MiniMessage 消息</gray>
+    <gray>/trc sendproxy <文本> - 跨服发送 MiniMessage 消息</gray>
     <gray>/fxchat sudo [玩家ID] [消息] [频道] [私聊玩家] - 让指定玩家发送消息</gray>
     <gray>/fxchat view [item|inventory|enderchest|container] [令牌] - 查看聊天展示</gray>
     <gray>/fxchat reload - 重载配置</gray>
@@ -35,6 +38,12 @@ command:
       pitch: 0.8
   view-usage: "<yellow>用法：/fxchat view [item|inventory|enderchest|container] [令牌]</yellow>"
   player-ignored: "<yellow>该玩家已屏蔽你，消息未发送。</yellow>"
+
+trc:
+  usage: "<yellow>用法：/trc send <玩家ID/*> <文本> 或 /trc sendproxy <文本></yellow>"
+  no-permission: "<red>你没有权限发送系统消息。</red>"
+  player-not-found: "<red>该玩家不在线。</red>"
+  invalid-message: "<red>消息无效或过长。</red>"
 
 chat:
   repeated-message: "<yellow>请不要重复发送相同消息。</yellow>"
@@ -127,6 +136,16 @@ mute:
       sound: "BLOCK_NOTE_BLOCK_BASS"
       volume: 1
       pitch: 0.8
+
+muteall:
+  usage: "<yellow>用法：/muteall <时长> [原因]，使用 /muteall off 解除</yellow>"
+  no-permission: "<red>你没有权限使用全服禁言。</red>"
+  invalid-duration: "<red>无效时长。示例：30s、10m、2h、1d 或 永久。</red>"
+  reason-too-long: "<red>全服禁言原因不能超过 512 个字符。</red>"
+  database-error: "<red>全服禁言保存失败，请检查数据库配置。</red>"
+  enabled: "<green>已开启全服禁言，时长 <white>{duration}</white>，原因：<white>{reason}</white>。</green>"
+  disabled: "<green>已解除全服禁言。</green>"
+  muted: "<red>当前处于全服禁言状态。原因：<white>{reason}</white>，剩余：<white>{remaining}</white></red>"
 
 function:
   mention-format: "<dark_green>[@<green>{player}</green>]</dark_green>"

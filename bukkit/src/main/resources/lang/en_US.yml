@@ -11,6 +11,9 @@ command:
     <gray>/fxchat spy [on|off] - Toggle private message spy mode</gray>
     <gray>/fxchat ignore - Open the ignore list dialog</gray>
     <gray>/mute [player] [reason] [duration] - Mute a player</gray>
+    <gray>/muteall [duration] [reason] - Mute everyone; use off to disable</gray>
+    <gray>/trc send <player/*> <text> - Send a MiniMessage message</gray>
+    <gray>/trc sendproxy <text> - Send a MiniMessage message across servers</gray>
     <gray>/fxchat sudo [player] [message] [channel] [private player] - Make a player send a message</gray>
     <gray>/fxchat view [item|inventory|enderchest|container] [token] - View a showcase</gray>
     <gray>/fxchat reload - Reload configuration</gray>
@@ -35,6 +38,12 @@ command:
       pitch: 0.8
   view-usage: "<yellow>Usage: /fxchat view [item|inventory|enderchest|container] [token]</yellow>"
   player-ignored: "<yellow>This player has ignored you; the message was not sent.</yellow>"
+
+trc:
+  usage: "<yellow>Usage: /trc send <player/*> <text> or /trc sendproxy <text></yellow>"
+  no-permission: "<red>You do not have permission to send system messages.</red>"
+  player-not-found: "<red>That player is not online.</red>"
+  invalid-message: "<red>The message is invalid or too long.</red>"
 
 chat:
   no-permission: "<red>You do not have permission to chat.</red>"
@@ -127,6 +136,16 @@ mute:
       sound: "BLOCK_NOTE_BLOCK_BASS"
       volume: 1
       pitch: 0.8
+
+muteall:
+  usage: "<yellow>Usage: /muteall <duration> [reason]; use /muteall off to disable</yellow>"
+  no-permission: "<red>You do not have permission to mute everyone.</red>"
+  invalid-duration: "<red>Invalid duration. Examples: 30s, 10m, 2h, 1d, or permanent.</red>"
+  reason-too-long: "<red>The global mute reason cannot exceed 512 characters.</red>"
+  database-error: "<red>Could not save the global mute. Check the database configuration.</red>"
+  enabled: "<green>Global mute enabled for <white>{duration}</white>. Reason: <white>{reason}</white>.</green>"
+  disabled: "<green>Global mute disabled.</green>"
+  muted: "<red>Global mute is active. Reason: <white>{reason}</white>; remaining: <white>{remaining}</white></red>"
 
 function:
   mention-format: "<dark_green>[@<green>{player}</green>]</dark_green>"

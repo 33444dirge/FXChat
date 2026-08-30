@@ -5,3 +5,17 @@ permission: ""
 range: 0
 cross-server: false
 format: "<white><hover:show_text:'<gold>▶</gold> <yellow>点击私信~</yellow>'><click:suggest_command:'/tell %player_name% '>{player}</click></hover></white><white> »</white> <hover:show_text:'<gray>时间: %server_time_HH:mm:ss%</gray>'>{message}</hover>"
+# 条件格式：从上往下匹配，命中第一条即生效。
+# 一条规则里的 world 与 permission 需同时满足（留空表示不限制）。
+# 写 format 则整体替换本频道格式（忽略上面的 format）；只写 prefix/suffix 则在上面 format 前后拼接。
+dynamic-formats:
+  # 玩家在 xingyu 世界时，整体替换成另一套聊天格式
+  - world: xingyu
+    format: "&8[&#5eaff星域&8]<white><hover:show_text:'<gold>▶</gold> <yellow>点击私信~</yellow>'><click:suggest_command:'/tell %player_name% '>{player}</click></hover></white><white> »</white> <hover:show_text:'<gray>时间: %server_time_HH:mm:ss%</gray>'>{message}</hover>"
+  # 示例：多个世界 + 权限同时满足，才整体替换格式
+  # - world: [xingyu, hell]
+  #   permission: fxchat.vip
+  #   format: "<gradient:#ff8a00:#ffd200>[VIP]</gradient> {player} » {message}"
+  # 示例：只加前缀、保留原格式
+  # - world: xingyu
+  #   prefix: "<gold>[xingyu]</gold> "

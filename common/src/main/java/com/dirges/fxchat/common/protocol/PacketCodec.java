@@ -20,6 +20,7 @@ public final class PacketCodec {
     private static final byte DIRECTORY = 2;
     private static final byte PRIVATE_MESSAGE = 3;
     private static final byte MUTE = 4;
+    private static final byte SYSTEM_MESSAGE = 5;
     private static final int MAX_STRING_BYTES = 16 * 1024;
 
     private PacketCodec() {
@@ -129,6 +130,26 @@ public final class PacketCodec {
         }
     }
 
+    public static byte[] encode(SystemMessagePacket packet) {
+        try {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream(1024);
+            try (DataOutputStream output = new DataOutputStream(bytes)) {
+                writeHeader(output, SYSTEM_MESSAGE);
+                writeUuid(output, packet.messageId());
+                output.writeLong(packet.createdAt());
+                writeString(output, packet.originServer());
+                output.writeBoolean(packet.targetId() != null);
+                if (packet.targetId() != null) writeUuid(output, packet.targetId());
+                writeString(output, packet.message());
+            }
+            byte[] result = bytes.toByteArray();
+            if (result.length > MAX_PACKET_BYTES) throw new IllegalArgumentException("FXChat packet is too large");
+            return result;
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not encode FXChat system message", exception);
+        }
+    }
+
     public static ChatPacket decode(byte[] data) throws IOException {
         Object packet = decodePacket(data);
         if (packet instanceof ChatPacket chatPacket) {
@@ -151,6 +172,7 @@ public final class PacketCodec {
                 case DIRECTORY -> readDirectory(input);
                 case PRIVATE_MESSAGE -> readPrivateMessage(input);
                 case MUTE -> readMute(input);
+                case SYSTEM_MESSAGE -> readSystemMessage(input);
                 default -> throw new IOException("Unknown FXChat packet type");
             };
             if (input.available() != 0) {
@@ -223,6 +245,14 @@ public final class PacketCodec {
                 input.readLong(),
                 input.readLong()
         );
+    }
+
+    private static SystemMessagePacket readSystemMessage(DataInputStream input) throws IOException {
+        UUID messageId = readUuid(input);
+        long createdAt = input.readLong();
+        String originServer = readString(input);
+        UUID targetId = input.readBoolean() ? readUuid(input) : null;
+        return new SystemMessagePacket(messageId, createdAt, originServer, targetId, readString(input));
     }
 
     private static void writeUuid(DataOutputStream output, UUID uuid) throws IOException {

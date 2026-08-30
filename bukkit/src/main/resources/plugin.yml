@@ -156,6 +156,14 @@ permissions:
     default: op
   fxchat.mute:
     default: op
+  fxchat.muteall:
+    default: op
+  fxchat.trc.send:
+    default: op
+  fxchat.trc.sendproxy:
+    default: op
+  fxchat.trc:
+    default: op
   fxchat.function.mentionall:
     default: op
   fxchat.function.inventoryshow:

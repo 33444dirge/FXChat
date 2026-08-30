@@ -24,6 +24,7 @@ import com.dirges.fxchat.bukkit.moderation.MuteService;
 import com.dirges.fxchat.bukkit.moderation.PrivateSpyService;
 import com.dirges.fxchat.bukkit.moderation.IgnoreService;
 import com.dirges.fxchat.bukkit.player.PlayerSessionManager;
+import com.dirges.fxchat.bukkit.player.PlayerChannelService;
 import com.dirges.fxchat.bukkit.proxy.BukkitProxyTransport;
 import com.dirges.fxchat.bukkit.render.MessageRenderer;
 import com.dirges.fxchat.bukkit.scheduler.FoliaSupport;
@@ -32,6 +33,7 @@ import com.dirges.fxchat.bukkit.script.ChatScriptService;
 import com.dirges.fxchat.common.protocol.ChatPacket;
 import com.dirges.fxchat.common.protocol.PrivateMessagePacket;
 import com.dirges.fxchat.common.protocol.MutePacket;
+import com.dirges.fxchat.common.protocol.SystemMessagePacket;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandMap;
 import org.bukkit.command.SimpleCommandMap;
@@ -54,6 +56,7 @@ public final class FXChatBukkit extends JavaPlugin {
     private ChatFilterService chatFilters;
     private MuteService muteService;
     private PrivateSpyService privateSpyService;
+    private PlayerChannelService playerChannelService;
     private IgnoreService ignoreService;
     private MentionCompletionService mentionCompletions;
     private BukkitProxyTransport transport;
@@ -153,6 +156,8 @@ public final class FXChatBukkit extends JavaPlugin {
         muteService.start();
         privateSpyService = new PrivateSpyService(getDataFolder(), databaseSettings, scheduler, getLogger()::warning);
         privateSpyService.start();
+        playerChannelService = new PlayerChannelService(getDataFolder(), databaseSettings, scheduler, getLogger()::warning);
+        playerChannelService.start(sessions);
         ignoreService = new IgnoreService(getDataFolder(), scheduler, sessions, messages, getLogger()::warning);
         FunctionSettings functionSettings = FunctionSettings.load(
                 new java.io.File(getDataFolder(), "functions.yml"), getLogger()::warning);
@@ -201,6 +206,8 @@ public final class FXChatBukkit extends JavaPlugin {
                         mutePacket.mutedAt(),
                         mutePacket.expiresAt()
                 ));
+            } else if (packet instanceof SystemMessagePacket systemMessagePacket) {
+                service.receiveSystemMessage(systemMessagePacket);
             }
         }, directory -> {
             sessions.updateRemoteNames(directory.players());
@@ -208,7 +215,8 @@ public final class FXChatBukkit extends JavaPlugin {
         });
         chatService = new ChatService(
                 this, scheduler, messages, settings, sessions, renderer, functions, scripts, transport,
-                leaveExternalChat, customNameplates, muteService, privateSpyService, ignoreService, chatFilters);
+                leaveExternalChat, customNameplates, muteService, privateSpyService, ignoreService,
+                playerChannelService, chatFilters);
         serviceReference.set(chatService);
         transport.enable();
 
@@ -227,7 +235,7 @@ public final class FXChatBukkit extends JavaPlugin {
         });
         Bukkit.getPluginManager().registerEvents(
                 new FXChatListener(scheduler, chatService, chatFilters, sessions, mentionCompletions, functions, blockLocker,
-                        ignoreService, renderer), this);
+                        ignoreService, renderer, playerChannelService), this);
         if (getCommand("fxchat") != null) {
             Objects.requireNonNull(getCommand("fxchat")).setExecutor(command);
             Objects.requireNonNull(getCommand("fxchat")).setTabCompleter(command);
@@ -322,6 +330,9 @@ public final class FXChatBukkit extends JavaPlugin {
         if (ignoreService != null) {
             ignoreService.close();
         }
+        if (playerChannelService != null) {
+            playerChannelService.close();
+        }
         if (customNameplates != null) {
             customNameplates.close();
             customNameplates = null;
@@ -401,6 +412,13 @@ public final class FXChatBukkit extends JavaPlugin {
                 "Mute a player",
                 "/mute <player> <reason> <duration>",
                 ConfigCommand.Kind.MUTE
+        );
+        registerConfiguredCommand(
+                handler, labels, "muteall", List.of(), "Mute all players",
+                "/muteall <duration> [reason]", ConfigCommand.Kind.MUTE_ALL
+        );
+        registerConfiguredCommand(
+                handler, labels, "trc", List.of(), "Send a MiniMessage", "/trc <send|sendproxy> ...", ConfigCommand.Kind.TRC
         );
     }
 

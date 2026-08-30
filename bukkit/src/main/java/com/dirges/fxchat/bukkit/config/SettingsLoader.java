@@ -58,7 +58,7 @@ public final class SettingsLoader {
             channels.put("公开", new Settings.ChannelSettings(
                 "公开", "", 0D, false, List.of("g"),
                     "<gray>[公开]</gray> <white>{player}</white><gray>: </gray>{message}",
-                    "", ""
+                    "", "", List.of()
             ));
         }
         for (Settings.ChannelSettings channel : channels.values()) {
@@ -207,8 +207,52 @@ public final class SettingsLoader {
                 new ArrayList<>(section.getStringList("aliases")),
                 section.getString("format", "{message}"),
                 section.getString("global-prefix", section.getString("prefix", "")),
-                section.getString("prefix-channel", "")
+                section.getString("prefix-channel", ""),
+                readFormatRules(section, id)
         ));
+    }
+
+    private List<Settings.FormatRule> readFormatRules(ConfigurationSection section, String channelId) {
+        List<Map<?, ?>> entries = section.getMapList("dynamic-formats");
+        if (entries.isEmpty()) {
+            return List.of();
+        }
+        List<Settings.FormatRule> rules = new ArrayList<>();
+        for (Map<?, ?> entry : entries) {
+            List<String> worlds = readStringList(entry.get("world"));
+            List<String> permissions = readStringList(entry.get("permission"));
+            String format = readString(entry.get("format"));
+            String prefix = readString(entry.get("prefix"));
+            String suffix = readString(entry.get("suffix"));
+            if (format.isEmpty() && prefix.isEmpty() && suffix.isEmpty()) {
+                warning.accept("Ignored a dynamic-formats rule in channel '" + channelId
+                        + "' because it has no format, prefix, or suffix.");
+                continue;
+            }
+            rules.add(new Settings.FormatRule(worlds, permissions, format, prefix, suffix));
+        }
+        return rules;
+    }
+
+    private static List<String> readStringList(Object value) {
+        if (value == null) {
+            return List.of();
+        }
+        if (value instanceof Iterable<?> iterable) {
+            List<String> result = new ArrayList<>();
+            for (Object element : iterable) {
+                if (element != null && !element.toString().isBlank()) {
+                    result.add(element.toString());
+                }
+            }
+            return result;
+        }
+        String single = value.toString();
+        return single.isBlank() ? List.of() : List.of(single);
+    }
+
+    private static String readString(Object value) {
+        return value == null ? "" : value.toString();
     }
 
     private static boolean isYaml(File file) {

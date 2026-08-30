@@ -8,9 +8,11 @@ import com.dirges.fxchat.bukkit.function.ChatFunctionService;
 import com.dirges.fxchat.bukkit.hook.CustomNameplatesHook;
 import com.dirges.fxchat.bukkit.moderation.MuteRecord;
 import com.dirges.fxchat.bukkit.moderation.MuteService;
+import com.dirges.fxchat.bukkit.moderation.GlobalMuteRecord;
 import com.dirges.fxchat.bukkit.moderation.PrivateSpyService;
 import com.dirges.fxchat.bukkit.moderation.IgnoreService;
 import com.dirges.fxchat.bukkit.player.PlayerSessionManager;
+import com.dirges.fxchat.bukkit.player.PlayerChannelService;
 import com.dirges.fxchat.bukkit.player.PlayerSnapshot;
 import com.dirges.fxchat.bukkit.protocol.SeenMessages;
 import com.dirges.fxchat.bukkit.proxy.BukkitProxyTransport;
@@ -19,6 +21,7 @@ import com.dirges.fxchat.bukkit.scheduler.SchedulerFacade;
 import com.dirges.fxchat.bukkit.script.ChatScriptService;
 import com.dirges.fxchat.common.protocol.ChatPacket;
 import com.dirges.fxchat.common.protocol.PrivateMessagePacket;
+import com.dirges.fxchat.common.protocol.SystemMessagePacket;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import org.bukkit.Bukkit;
@@ -45,6 +48,7 @@ public final class ChatService implements AutoCloseable {
     private final CustomNameplatesHook customNameplates;
     private final MuteService muteService;
     private final IgnoreService ignoreService;
+    private final PlayerChannelService playerChannels;
     private final ChatFilterService filters;
     private Consumer<Player> leaveExternalChat;
     private final SeenMessages seenMessages = new SeenMessages();
@@ -71,6 +75,7 @@ public final class ChatService implements AutoCloseable {
             MuteService muteService,
             PrivateSpyService privateSpies,
             IgnoreService ignoreService,
+            PlayerChannelService playerChannels,
             ChatFilterService filters
     ) {
         this.plugin = plugin;
@@ -86,6 +91,7 @@ public final class ChatService implements AutoCloseable {
         this.muteService = muteService;
         this.privateSpies = privateSpies;
         this.ignoreService = ignoreService;
+        this.playerChannels = playerChannels;
         this.filters = filters;
         this.leaveExternalChat = leaveExternalChat;
     }
@@ -158,6 +164,24 @@ public final class ChatService implements AutoCloseable {
         }
     }
 
+    public boolean exitPrivateChannel(Player sender) {
+        if (closed.get() || !sender.isOnline()) {
+            return false;
+        }
+        Settings current = settings;
+        String active = sessions.activeChannel(
+                sender.getUniqueId(), current.defaultChannel(), current.privateChannel());
+        if (!active.equalsIgnoreCase(current.privateChannel())) {
+            return false;
+        }
+        if (selectChannel(sender, current.defaultChannel())) {
+            messages.send(sender, "command.channel-selected", Map.of(
+                    "channel", current.defaultChannel()));
+            return true;
+        }
+        return false;
+    }
+
     public void replyPrivateMessage(Player sender, String rawMessage) {
         ReplyTarget target = replyTargets.get(sender.getUniqueId());
         if (target == null) {
@@ -194,8 +218,7 @@ public final class ChatService implements AutoCloseable {
         }
         Settings current = settings;
         String channelId = requestedChannel == null
-                ? sessions.activeChannel(
-                executor.getUniqueId(), current.defaultChannel(), current.privateChannel())
+                ? activeChannel(executor)
                 : current.resolveChannel(requestedChannel);
         if (channelId == null) {
             messages.send(executor, "chat.channel-not-found");
@@ -246,6 +269,7 @@ public final class ChatService implements AutoCloseable {
         }
         leaveExternalChat.accept(player);
         sessions.selectChannel(player.getUniqueId(), selectedChannel);
+        playerChannels.save(player.getUniqueId(), selectedChannel);
         scripts.triggerChannelSwitch(
                 player, previousChannel, selectedChannel, current.serverName(), current.privateChannel());
         return true;
@@ -253,7 +277,12 @@ public final class ChatService implements AutoCloseable {
 
     public String activeChannel(Player player) {
         Settings current = settings;
-        return sessions.activeChannel(player.getUniqueId(), current.defaultChannel(), current.privateChannel());
+        String selected = sessions.activeChannel(player.getUniqueId(), current.defaultChannel(), current.privateChannel());
+        if (selected.equalsIgnoreCase(current.privateChannel()) || current.resolveChannel(selected) != null) {
+            return selected;
+        }
+        sessions.selectChannel(player.getUniqueId(), current.defaultChannel());
+        return current.defaultChannel();
     }
 
     public void handleChannelAlias(Player player, String channelId, String rawMessage) {
@@ -478,6 +507,25 @@ public final class ChatService implements AutoCloseable {
         } catch (RuntimeException exception) {
             plugin.getLogger().warning("Dropped FXChat message with invalid component data");
         }
+    }
+
+    public void sendSystemMessage(SystemMessagePacket packet) {
+        if (packet.targetId() != null) {
+            sessions.runAt(packet.targetId(), scheduler,
+                    player -> player.sendMessage(messages.componentText(packet.message())));
+            return;
+        }
+        for (UUID playerId : sessions.onlineIds()) {
+            sessions.runAt(playerId, scheduler,
+                    player -> player.sendMessage(messages.componentText(packet.message())));
+        }
+    }
+
+    public void receiveSystemMessage(SystemMessagePacket packet) {
+        if (packet.originServer().equalsIgnoreCase(settings.serverName())) {
+            return;
+        }
+        sendSystemMessage(packet);
     }
 
     public void receivePrivateRemote(PrivateMessagePacket packet) {
@@ -741,6 +789,14 @@ public final class ChatService implements AutoCloseable {
     }
 
     private boolean isMuted(Player player) {
+        GlobalMuteRecord global = muteService.global();
+        if (global != null) {
+            messages.send(player, "muteall.muted", Map.of(
+                    "reason", global.reason(),
+                    "remaining", MuteService.remaining(global.expiresAt(), System.currentTimeMillis())
+            ));
+            return true;
+        }
         MuteRecord record = muteService.active(player.getUniqueId());
         if (record == null) {
             return false;

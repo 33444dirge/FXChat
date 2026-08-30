@@ -61,10 +61,34 @@ public record Settings(
             List<String> aliases,
             String format,
             String globalPrefix,
-            String prefixChannel
+            String prefixChannel,
+            List<FormatRule> dynamicFormats
     ) {
         public ChannelSettings {
             aliases = List.copyOf(aliases);
+            dynamicFormats = List.copyOf(dynamicFormats);
+        }
+    }
+
+    /**
+     * Conditional formatting for a channel. A rule matches when every condition it
+     * declares is satisfied (world AND permission); an empty condition list matches
+     * anything. When a rule matches, {@code format} replaces the channel format if
+     * set, otherwise {@code prefix} and {@code suffix} wrap the channel format.
+     */
+    public record FormatRule(
+            List<String> worlds,
+            List<String> permissions,
+            String format,
+            String prefix,
+            String suffix
+    ) {
+        public FormatRule {
+            worlds = List.copyOf(worlds);
+            permissions = List.copyOf(permissions);
+            format = format == null ? "" : format;
+            prefix = prefix == null ? "" : prefix;
+            suffix = suffix == null ? "" : suffix;
         }
     }
 

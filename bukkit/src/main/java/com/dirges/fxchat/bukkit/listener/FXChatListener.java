@@ -8,6 +8,7 @@ import com.dirges.fxchat.bukkit.function.ChatFunctionService;
 import com.dirges.fxchat.bukkit.hook.BlockLockerHook;
 import com.dirges.fxchat.bukkit.moderation.IgnoreService;
 import com.dirges.fxchat.bukkit.player.PlayerSessionManager;
+import com.dirges.fxchat.bukkit.player.PlayerChannelService;
 import com.dirges.fxchat.bukkit.render.MessageRenderer;
 import com.dirges.fxchat.bukkit.scheduler.SchedulerFacade;
 import io.papermc.paper.event.player.AsyncChatEvent;
@@ -38,6 +39,7 @@ public final class FXChatListener implements Listener {
     private final BlockLockerHook blockLocker;
     private final IgnoreService ignoreService;
     private final MessageRenderer renderer;
+    private final PlayerChannelService playerChannels;
 
     public FXChatListener(
             SchedulerFacade scheduler,
@@ -48,7 +50,8 @@ public final class FXChatListener implements Listener {
             ChatFunctionService functions,
             BlockLockerHook blockLocker,
             IgnoreService ignoreService,
-            MessageRenderer renderer
+            MessageRenderer renderer,
+            PlayerChannelService playerChannels
     ) {
         this.scheduler = scheduler;
         this.chatService = chatService;
@@ -59,6 +62,7 @@ public final class FXChatListener implements Listener {
         this.blockLocker = blockLocker;
         this.ignoreService = ignoreService;
         this.renderer = renderer;
+        this.playerChannels = playerChannels;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -103,6 +107,7 @@ public final class FXChatListener implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         sessions.join(player);
+        playerChannels.restore(player.getUniqueId(), sessions);
         mentionCompletions.refreshFor(player.getUniqueId());
     }
 

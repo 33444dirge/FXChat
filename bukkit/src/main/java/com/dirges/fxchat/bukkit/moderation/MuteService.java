@@ -32,6 +32,7 @@ public final class MuteService implements AutoCloseable {
     private final Consumer<String> warning;
     private final ConcurrentHashMap<UUID, MuteRecord> active = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, MuteRecord> pendingRemote = new ConcurrentHashMap<>();
+    private volatile GlobalMuteRecord global;
     private final AtomicBoolean ready = new AtomicBoolean();
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicBoolean cleanupWriteInFlight = new AtomicBoolean();
@@ -64,6 +65,7 @@ public final class MuteService implements AutoCloseable {
                 createSchema(connection);
                 deleteExpired(connection, System.currentTimeMillis());
                 loadActive(connection, System.currentTimeMillis());
+                loadGlobal(connection, System.currentTimeMillis());
                 for (MuteRecord record : pendingRemote.values()) {
                     saveRecord(connection, record);
                 }
@@ -95,6 +97,49 @@ public final class MuteService implements AutoCloseable {
             return null;
         }
         return record;
+    }
+
+    public GlobalMuteRecord global() {
+        GlobalMuteRecord record = global;
+        if (record != null && record.activeAt(System.currentTimeMillis())) {
+            global = null;
+            scheduler.runAsync(this::deleteGlobal);
+            return null;
+        }
+        return record;
+    }
+
+    public void saveGlobal(GlobalMuteRecord record, Runnable success, Consumer<Throwable> failure) {
+        if (ready()) {
+            failure.accept(new IllegalStateException("Mute database is not ready"));
+            return;
+        }
+        scheduler.runAsync(() -> {
+            try (Connection connection = database.open(dataFolder)) {
+                saveGlobalRecord(connection, record);
+                if (!closed.get()) global = record;
+                success.run();
+            } catch (Throwable exception) {
+                failure.accept(exception);
+            }
+        });
+    }
+
+    public void clearGlobal(Runnable success, Consumer<Throwable> failure) {
+        if (ready()) {
+            failure.accept(new IllegalStateException("Mute database is not ready"));
+            return;
+        }
+        scheduler.runAsync(() -> {
+            try (Connection connection = database.open(dataFolder);
+                 Statement statement = connection.createStatement()) {
+                statement.executeUpdate("DELETE FROM fxchat_global_mute");
+                global = null;
+                success.run();
+            } catch (Throwable exception) {
+                failure.accept(exception);
+            }
+        });
     }
 
     public void save(
@@ -175,10 +220,14 @@ public final class MuteService implements AutoCloseable {
     }
 
     public static String remaining(MuteRecord record, long now) {
-        if (record.expiresAt() == 0) {
+        return remaining(record.expiresAt(), now);
+    }
+
+    public static String remaining(long expiresAt, long now) {
+        if (expiresAt == 0) {
             return "永久";
         }
-        long remainingMillis = Math.max(0L, record.expiresAt() - now);
+        long remainingMillis = Math.max(0L, expiresAt - now);
         long seconds = Math.max(1L, remainingMillis / SECOND
                 + (remainingMillis % SECOND == 0 ? 0L : 1L));
         long days = seconds / 86_400L;
@@ -220,6 +269,9 @@ public final class MuteService implements AutoCloseable {
                     + "muted_at BIGINT NOT NULL,"
                     + "expires_at BIGINT NOT NULL"
                     + ")");
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS fxchat_global_mute ("
+                    + "id INT PRIMARY KEY, reason VARCHAR(512) NOT NULL, muted_by VARCHAR(64) NOT NULL,"
+                    + "muted_at BIGINT NOT NULL, expires_at BIGINT NOT NULL)");
         }
     }
 
@@ -232,6 +284,21 @@ public final class MuteService implements AutoCloseable {
                 while (result.next()) {
                     MuteRecord record = readRecord(result);
                     active.put(record.playerId(), record);
+                }
+            }
+        }
+    }
+
+    private void loadGlobal(Connection connection, long now) throws SQLException {
+        global = null;
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT reason, muted_by, muted_at, expires_at FROM fxchat_global_mute WHERE id = 1")) {
+            try (ResultSet result = statement.executeQuery()) {
+                if (result.next()) {
+                    GlobalMuteRecord record = new GlobalMuteRecord(result.getString("reason"),
+                            result.getString("muted_by"), result.getLong("muted_at"), result.getLong("expires_at"));
+                    if (record.activeAt(now)) deleteGlobal(connection);
+                    else global = record;
                 }
             }
         }
@@ -275,6 +342,44 @@ public final class MuteService implements AutoCloseable {
         }
     }
 
+    private void saveGlobalRecord(Connection connection, GlobalMuteRecord record) throws SQLException {
+        boolean autoCommit = connection.getAutoCommit();
+        connection.setAutoCommit(false);
+        try {
+            try (Statement delete = connection.createStatement()) {
+                delete.executeUpdate("DELETE FROM fxchat_global_mute");
+            }
+            try (PreparedStatement insert = connection.prepareStatement(
+                    "INSERT INTO fxchat_global_mute (id, reason, muted_by, muted_at, expires_at) VALUES (1, ?, ?, ?, ?)")) {
+                insert.setString(1, record.reason());
+                insert.setString(2, record.mutedBy());
+                insert.setLong(3, record.mutedAt());
+                insert.setLong(4, record.expiresAt());
+                insert.executeUpdate();
+            }
+            connection.commit();
+        } catch (SQLException exception) {
+            connection.rollback();
+            throw exception;
+        } finally {
+            connection.setAutoCommit(autoCommit);
+        }
+    }
+
+    private void deleteGlobal() {
+        try (Connection connection = database.open(dataFolder)) {
+            deleteGlobal(connection);
+        } catch (SQLException exception) {
+            warning.accept("Could not remove expired global mute: " + exception.getMessage());
+        }
+    }
+
+    private static void deleteGlobal(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate("DELETE FROM fxchat_global_mute");
+        }
+    }
+
     private void deleteRecord(UUID playerId) {
         if (ready() || closed.get()) {
             return;
@@ -301,6 +406,7 @@ public final class MuteService implements AutoCloseable {
         scheduler.runAsync(() -> {
             try (Connection connection = database.open(dataFolder)) {
                 deleteExpired(connection, now);
+                loadGlobal(connection, now);
             } catch (SQLException exception) {
                 if (!closed.get()) {
                     warning.accept("Could not remove expired mutes: " + exception.getMessage());
@@ -330,6 +436,7 @@ public final class MuteService implements AutoCloseable {
             ready.set(false);
             active.clear();
             pendingRemote.clear();
+            global = null;
         }
     }
 
