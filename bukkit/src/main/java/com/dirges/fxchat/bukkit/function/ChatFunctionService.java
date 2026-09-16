@@ -1,5 +1,6 @@
 package com.dirges.fxchat.bukkit.function;
 
+import com.dirges.fxchat.bukkit.chat.ChatFilterService;
 import com.dirges.fxchat.bukkit.config.FunctionSettings;
 import com.dirges.fxchat.bukkit.config.CustomFunctionSettings;
 import com.dirges.fxchat.bukkit.config.MessageService;
@@ -14,6 +15,7 @@ import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
@@ -58,6 +60,7 @@ public final class ChatFunctionService implements AutoCloseable {
     private final ShowcaseStore showcases;
     private final CraftEngineHook craftEngine;
     private final PapiHook papi;
+    private final ChatFilterService filters;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final ConcurrentHashMap<UUID, ConcurrentHashMap<String, Long>> cooldowns = new ConcurrentHashMap<>();
     private final Object mentionPatternLock = new Object();
@@ -73,6 +76,7 @@ public final class ChatFunctionService implements AutoCloseable {
             ShowcaseStore showcases,
             CraftEngineHook craftEngine,
             PapiHook papi,
+            ChatFilterService filters,
             FunctionSettings settings,
             CustomFunctionSettings customFunctions
     ) {
@@ -82,6 +86,7 @@ public final class ChatFunctionService implements AutoCloseable {
         this.showcases = showcases;
         this.craftEngine = craftEngine;
         this.papi = papi;
+        this.filters = filters;
         this.state = new FunctionState(settings, FunctionPatterns.create(settings));
         this.customFunctions = customFunctions;
     }
@@ -171,10 +176,11 @@ public final class ChatFunctionService implements AutoCloseable {
             if (!player.isOnline()) {
                 return;
             }
+            ShowcaseStore.Showcase filtered = filterShowcase(snapshot);
             ShowcaseStore.Holder holder = new ShowcaseStore.Holder();
-            Inventory inventory = createShowcaseInventory(holder, snapshot);
+            Inventory inventory = createShowcaseInventory(holder, filtered);
             holder.bind(inventory);
-            populateShowcase(inventory, snapshot);
+            populateShowcase(inventory, filtered);
             player.openInventory(inventory);
         });
     }
@@ -185,7 +191,7 @@ public final class ChatFunctionService implements AutoCloseable {
                 || !(meta.getBlockState() instanceof ShulkerBox shulkerBox)) {
             return;
         }
-        ItemStack[] contents = shulkerBox.getInventory().getContents();
+        ItemStack[] contents = filterCustomItemNames(shulkerBox.getInventory().getContents());
         scheduler.runAtEntity(player, () -> {
             if (!player.isOnline()) return;
             ShowcaseStore.Holder holder = new ShowcaseStore.Holder();
@@ -674,8 +680,9 @@ public final class ChatFunctionService implements AutoCloseable {
             FunctionSettings.Showcase config,
             Map<String, String> wireShowcases
     ) {
-        ItemStack shown = config.compatible() ? new ItemStack(item.getType(), item.getAmount()) : item;
-        Component itemName = itemName(item);
+        ItemStack shown = config.compatible() ? new ItemStack(item.getType(), item.getAmount()) : item.clone();
+        shown = filterCustomItemNames(shown);
+        Component itemName = itemName(shown);
         TagResolver itemNameResolver = Placeholder.component("fx_item_name", itemName);
         String format = messages.text("function.item-format", Map.of("amount", shown.getAmount()))
                 .replace("{item}", "<fx_item_name>");
@@ -707,7 +714,7 @@ public final class ChatFunctionService implements AutoCloseable {
         return new ShowcaseStore.Showcase(
                 ShowcaseStore.Kind.INVENTORY,
                 messages.text("function.inventory-title", Map.of("player", sender.getName())),
-                result,
+                filterCustomItemNames(result),
                 inventory.getHeldItemSlot(),
                 sender.getName()
         );
@@ -717,7 +724,7 @@ public final class ChatFunctionService implements AutoCloseable {
         return new ShowcaseStore.Showcase(
                 ShowcaseStore.Kind.ENDER_CHEST,
                 messages.text("function.enderchest-title", Map.of("player", sender.getName())),
-                sender.getEnderChest().getContents(),
+                filterCustomItemNames(sender.getEnderChest().getContents()),
                 -1,
                 sender.getName()
         );
@@ -778,7 +785,7 @@ public final class ChatFunctionService implements AutoCloseable {
             Inventory container,
             String containerName
     ) {
-        ItemStack[] items = container.getContents();
+        ItemStack[] items = filterCustomItemNames(container.getContents());
         return new ShowcaseStore.Showcase(
                 ShowcaseStore.Kind.CONTAINER,
                 containerName,
@@ -933,6 +940,75 @@ public final class ChatFunctionService implements AutoCloseable {
 
     private static ItemStack itemAtHotbar(PlayerInventory inventory, int slot) {
         return slot == 0 ? inventory.getItemInOffHand() : inventory.getItem(slot - 1);
+    }
+
+    private ShowcaseStore.Showcase filterShowcase(ShowcaseStore.Showcase snapshot) {
+        if (snapshot == null) {
+            return null;
+        }
+        return new ShowcaseStore.Showcase(
+                snapshot.kind(),
+                snapshot.title(),
+                filterCustomItemNames(snapshot.copyItems()),
+                snapshot.heldSlot(),
+                snapshot.ownerName(),
+                snapshot.containerType()
+        );
+    }
+
+    private ItemStack[] filterCustomItemNames(ItemStack[] items) {
+        if (items == null || items.length == 0) {
+            return items;
+        }
+        ItemStack[] result = items.clone();
+        for (int slot = 0; slot < result.length; slot++) {
+            result[slot] = filterCustomItemNames(result[slot]);
+        }
+        return result;
+    }
+
+    private ItemStack filterCustomItemNames(ItemStack item) {
+        if (item == null || item.getType().isAir()) {
+            return item;
+        }
+        ItemStack filtered = item.clone();
+        ItemMeta meta = filtered.getItemMeta();
+        if (meta == null) {
+            return filtered;
+        }
+        boolean changed = false;
+        if (meta.hasDisplayName()) {
+            Component displayName = meta.displayName();
+            Component filteredName = filterCustomName(displayName);
+            if (filteredName != displayName) {
+                meta.displayName(filteredName);
+                changed = true;
+            }
+        }
+        if (meta.hasItemName()) {
+            Component itemName = meta.itemName();
+            Component filteredName = filterCustomName(itemName);
+            if (filteredName != itemName) {
+                meta.itemName(filteredName);
+                changed = true;
+            }
+        }
+        if (changed) {
+            filtered.setItemMeta(meta);
+        }
+        return filtered;
+    }
+
+    private Component filterCustomName(Component name) {
+        if (name == null) {
+            return null;
+        }
+        String original = LegacyComponentSerializer.legacySection().serialize(name);
+        String filtered = filters.filterChat(original);
+        if (Objects.equals(original, filtered)) {
+            return name;
+        }
+        return LegacyComponentSerializer.legacySection().deserialize(filtered);
     }
 
     private static Component itemName(ItemStack item) {

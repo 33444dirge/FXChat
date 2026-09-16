@@ -179,6 +179,7 @@ public final class FXChatBukkit extends JavaPlugin {
                 showcases,
                 craftEngine,
                 papi,
+                chatFilters,
                 functionSettings,
                 CustomFunctionSettings.load(
                         new java.io.File(getDataFolder(), "custom-functions.yml"), getLogger()::warning)
