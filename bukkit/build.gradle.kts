@@ -31,6 +31,13 @@ tasks.shadowJar {
     archiveClassifier.set("")
     duplicatesStrategy = org.gradle.api.file.DuplicatesStrategy.INCLUDE
     mergeServiceFiles()
+
+    // bStats refuses to run from its original package: MetricsBase.checkRelocation()
+    // throws IllegalStateException("bStats Metrics class has not been relocated
+    // correctly!") when the class is still in org.bstats. Without this relocation
+    // the Metrics constructor threw during onEnable, which made Bukkit unload the
+    // whole plugin, so metrics being present took chat down with it.
+    relocate("org.bstats", "com.dirges.fxchat.libs.bstats")
 }
 
 tasks.build {

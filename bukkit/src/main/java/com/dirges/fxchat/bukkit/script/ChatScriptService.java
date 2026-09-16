@@ -34,12 +34,28 @@ public final class ChatScriptService implements AutoCloseable {
             Context context = super.makeContext();
             context.setOptimizationLevel(-1);
             context.setInstructionObserverThreshold(100_000);
+            // Interpreted mode keeps its stack on the heap, so runaway recursion
+            // would otherwise grow until it exhausts memory and takes the whole
+            // JVM down instead of raising a catchable error.
+            context.setMaximumInterpreterStackDepth(500);
+            // Rhino's default dialect predates ES6, where `let`, `const`, arrow
+            // functions and template literals are syntax errors. The class
+            // shutter below still denies Java access at this language level.
+            context.setLanguageVersion(Context.VERSION_ES6);
             return context;
         }
 
         @Override
         protected void observeInstructionCount(Context context, int instructionCount) {
             throw new EvaluatorException("FXChat script exceeded the instruction limit");
+        }
+
+        @Override
+        protected boolean hasFeature(Context context, int feature) {
+            if (feature == Context.FEATURE_ENHANCED_JAVA_ACCESS) {
+                return false;
+            }
+            return super.hasFeature(context, feature);
         }
     };
 

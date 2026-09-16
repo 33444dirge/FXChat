@@ -66,6 +66,7 @@ public final class FXChatBukkit extends JavaPlugin {
     private CustomNameplatesHook customNameplates;
     private FXChatCommand command;
     private CommandMap commandMap;
+    private Metrics metrics;
     private final List<ConfigCommand> configuredCommands = new ArrayList<>();
     private volatile Settings settings;
 
@@ -274,13 +275,29 @@ public final class FXChatBukkit extends JavaPlugin {
         }
     }
 
+    /**
+     * Starts bStats, which is best-effort telemetry and must never decide whether
+     * the plugin loads.
+     *
+     * <p>bStats throws from its constructor when it detects that its classes were
+     * not relocated, and an exception escaping {@code onEnable} makes Bukkit
+     * unload the plugin. So the call is guarded: a metrics failure is reported
+     * and chat keeps working. The relocation in {@code bukkit/build.gradle.kts}
+     * is the actual fix for that specific error.</p>
+     */
     private void startBStats() {
         if (!getConfig().getBoolean("bstats.enabled", true)) {
             getLogger().info("bStats metrics are disabled in config.yml.");
             return;
         }
-        new Metrics(this, BSTATS_PLUGIN_ID);
-        getLogger().info("bStats metrics enabled.");
+        try {
+            metrics = new Metrics(this, BSTATS_PLUGIN_ID);
+            getLogger().info("bStats metrics enabled.");
+        } catch (Throwable exception) {
+            metrics = null;
+            getLogger().log(java.util.logging.Level.WARNING,
+                    "Could not start bStats metrics; continuing without them.", exception);
+        }
     }
 
     public Settings settings() {
@@ -368,6 +385,12 @@ public final class FXChatBukkit extends JavaPlugin {
         }
         if (scheduler != null) {
             scheduler.close();
+        }
+        // bStats owns a ScheduledThreadPoolExecutor; shutting it down stops the
+        // submission task from outliving an unload or a reload.
+        if (metrics != null) {
+            metrics.shutdown();
+            metrics = null;
         }
     }
 
