@@ -33,10 +33,6 @@ tasks.shadowJar {
     duplicatesStrategy = org.gradle.api.file.DuplicatesStrategy.INCLUDE
     mergeServiceFiles()
 
-    dependencies {
-        exclude { it.moduleGroup != "org.bstats" }
-    }
-
     // bStats refuses to run from its original package: MetricsBase.checkRelocation()
     // throws IllegalStateException("bStats Metrics class has not been relocated
     // correctly!") when the class is still in org.bstats. Without this relocation
