@@ -47,7 +47,7 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 
 public final class FXChatBukkit extends JavaPlugin {
-    private static final int BSTATS_PLUGIN_ID = 33734;
+    private static final int BSTATS_PLUGIN_ID = 34270;
 
     private SchedulerFacade scheduler;
     private SettingsLoader settingsLoader;
