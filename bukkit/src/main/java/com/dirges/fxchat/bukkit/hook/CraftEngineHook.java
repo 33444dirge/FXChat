@@ -8,7 +8,6 @@ import net.momirealms.craftengine.bukkit.world.BukkitWorldManager;
 import net.momirealms.craftengine.core.block.ImmutableBlockState;
 import net.momirealms.craftengine.core.block.entity.BlockEntity;
 import net.momirealms.craftengine.core.world.BlockPos;
-import net.momirealms.craftengine.core.world.CEWorld;
 import org.bukkit.block.Block;
 import org.bukkit.inventory.Inventory;
 
@@ -51,12 +50,12 @@ public final class CraftEngineHook {
             if (!CraftEngineBlocks.isCustomBlock(block)) {
                 return null;
             }
-            CEWorld world = BukkitWorldManager.instance().getWorld(block.getWorld().getUID());
+            var world = BukkitWorldManager.instance().getWorld(block.getWorld().getUID());
             if (world == null) {
                 return null;
             }
-            BlockEntity blockEntity = world.getBlockEntityAtIfLoaded(
-                    new BlockPos(block.getX(), block.getY(), block.getZ()));
+            BlockPos position = new BlockPos(block.getX(), block.getY(), block.getZ());
+            BlockEntity blockEntity = world.storageWorld().getBlockEntityAtIfLoaded(position);
             if (blockEntity == null || !blockEntity.isValid()) {
                 return null;
             }

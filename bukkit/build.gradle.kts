@@ -13,8 +13,8 @@ dependencies {
     compileOnly("net.kyori:adventure-text-minimessage:4.26.1")
     compileOnly("net.kyori:adventure-text-serializer-gson:4.26.1")
     compileOnly("com.incredibleplugins:lands-api:8.0.0")
-    compileOnly("net.momirealms:craft-engine-core:26.7.4")
-    compileOnly("net.momirealms:craft-engine-bukkit:26.7.4")
+    compileOnly("net.momirealms:craft-engine-core:26.8.2")
+    compileOnly("net.momirealms:craft-engine-bukkit:26.8.2")
     compileOnly("net.momirealms:custom-nameplates:3.0.33")
     compileOnly("nl.rutgerkok:blocklocker:1.13")
 }

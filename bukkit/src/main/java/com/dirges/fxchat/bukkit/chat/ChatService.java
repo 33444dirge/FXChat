@@ -531,8 +531,7 @@ public final class ChatService implements AutoCloseable {
     public void receivePrivateRemote(PrivateMessagePacket packet) {
         Settings current = settings;
         boolean targetLocal = sessions.isLocal(packet.targetId());
-        if (closed.get() || !seenMessages.markIfNew(packet.messageId())
-                || (!targetLocal && privateSpies.isEmpty())) {
+        if (closed.get() || !seenMessages.markIfNew(packet.messageId())) {
             return;
         }
         functions.importShowcases(packet.showcases());
@@ -552,11 +551,9 @@ public final class ChatService implements AutoCloseable {
                             current.privateChannel());
                 });
             }
-            sendPrivateSpyMessage(
-                    packet.senderId(),
-                    packet.targetId(),
-                    spyComponent
-            );
+            if (!privateSpies.isEmpty()) {
+                sendPrivateSpyMessage(packet.senderId(), packet.targetId(), spyComponent);
+            }
         } catch (RuntimeException exception) {
             plugin.getLogger().warning("Dropped FXChat private message with invalid component data");
         }
