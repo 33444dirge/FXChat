@@ -98,7 +98,7 @@ public final class IgnoreService implements AutoCloseable {
     }
 
     public void handleClick(InventoryClickEvent event) {
-        if (!(event.getView().getTopInventory().getHolder() instanceof Holder holder)) return;
+        if (!(event.getView().getTopInventory().getHolder(false) instanceof Holder holder)) return;
         event.setCancelled(true);
         if (!(event.getWhoClicked() instanceof Player player) || !holder.owner().equals(player.getUniqueId())
                 || event.getClickedInventory() != event.getView().getTopInventory()) return;

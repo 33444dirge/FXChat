@@ -7,7 +7,7 @@ plugins {
 
 allprojects {
     group = "com.dirges.fxchat"
-    version = "1.0.3-SNAPSHOT"
+    version = "1.0.4"
 
     repositories {
         mavenCentral()

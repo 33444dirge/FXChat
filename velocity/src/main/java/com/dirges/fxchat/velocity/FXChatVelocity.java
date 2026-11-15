@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 @Plugin(
         id = "fxchat",
         name = "FXChat",
-        version = "1.0.0-SNAPSHOT",
+        version = "1.0.4",
         authors = {"33444_dirge"}
 )
 public final class FXChatVelocity {

@@ -29,6 +29,13 @@ public record Settings(
         channels = Map.copyOf(channels);
     }
 
+    public Settings withChannels(Map<String, ChannelSettings> channels) {
+        return new Settings(serverName, proxyEnabled, cooldownMillis, antiRepeatWindowMillis,
+                antiRepeatSimilarity, maxMessageLength, defaultChannel, privateChannel,
+                globalPrefix, prefixChannel, filters, channels, privateSenderFormat,
+                privateReceiverFormat, privateSpyFormat, privateCommands, language);
+    }
+
     public ChannelSettings channel(String id) {
         if (id == null) {
             return null;

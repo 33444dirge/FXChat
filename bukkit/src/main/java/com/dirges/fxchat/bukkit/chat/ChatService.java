@@ -36,7 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
-public final class ChatService implements AutoCloseable {
+public final class ChatService implements AutoCloseable, com.dirges.fxchat.bukkit.api.FXChatApi {
     private final FXChatBukkit plugin;
     private final SchedulerFacade scheduler;
     private final MessageService messages;
@@ -59,6 +59,82 @@ public final class ChatService implements AutoCloseable {
     private final AtomicBoolean closed = new AtomicBoolean();
 
     private volatile Settings settings;
+    private volatile Settings baseSettings;
+    private record RegisteredChannel(org.bukkit.plugin.Plugin owner,
+            com.dirges.fxchat.bukkit.api.CustomChannel channel) {}
+    private final Map<String, RegisteredChannel> customChannels = new ConcurrentHashMap<>();
+
+    public Settings settings() { return settings; }
+
+    @Override public synchronized Registration registerChannel(org.bukkit.plugin.Plugin owner,
+            com.dirges.fxchat.bukkit.api.CustomChannel channel) {
+        java.util.Objects.requireNonNull(owner);
+        if (closed.get() || !owner.isEnabled()) throw new IllegalStateException("Plugin is disabled");
+        String key = channel.id().toLowerCase(Locale.ROOT);
+        var labels = new java.util.ArrayList<>(channel.commands());
+        labels.add(channel.id());
+        for (String label : labels) {
+            if (settings.resolveChannel(label) != null)
+                throw new IllegalArgumentException("Channel id/command already registered: " + label);
+        }
+        plugin.validateChannelCommands(channel.commands());
+        RegisteredChannel entry = new RegisteredChannel(owner, channel);
+        customChannels.put(key, entry);
+        rebuildChannels();
+        return () -> {
+            synchronized (ChatService.this) {
+                if (customChannels.remove(key, entry)) rebuildChannels();
+            }
+        };
+    }
+
+    public synchronized void unregisterChannels(org.bukkit.plugin.Plugin owner) {
+        if (customChannels.entrySet().removeIf(e -> e.getValue().owner() == owner)) rebuildChannels();
+    }
+
+    private void rebuildChannels() {
+        Map<String, Settings.ChannelSettings> merged = new java.util.HashMap<>(baseSettings.channels());
+        for (var entry : customChannels.entrySet()) {
+            var channel = entry.getValue().channel();
+            merged.put(entry.getKey(), new Settings.ChannelSettings(channel.id(), channel.permission(),
+                    0, false, channel.commands(), channel.format(), "", "", java.util.List.of()));
+        }
+        settings = baseSettings.withChannels(merged);
+        plugin.refreshChannelCommands();
+    }
+
+    private RegisteredChannel customChannel(String id) {
+        return id == null ? null : customChannels.get(id.toLowerCase(Locale.ROOT));
+    }
+
+    private String group(RegisteredChannel entry, UUID player) {
+        if (entry == null || !entry.owner().isEnabled()) return null;
+        try { return entry.channel().groupResolver().apply(player); }
+        catch (RuntimeException exception) {
+            plugin.getLogger().warning("Custom channel resolver failed: " + entry.channel().id());
+            return null;
+        }
+    }
+
+    private boolean mayEnter(Player player, String id) {
+        var channel = settings.channel(id);
+        return channel != null && player.hasPermission("fxchat.chat")
+                && (channel.permission().isBlank() || player.hasPermission(channel.permission()))
+                && (customChannel(id) == null || group(customChannel(id), player.getUniqueId()) != null);
+    }
+
+    @Override public boolean enterChannel(Player player, String requested) {
+        String id = settings.resolveChannel(requested);
+        if (closed.get() || !player.isOnline() || !mayEnter(player, id)
+                || id.equals(settings.privateChannel())) return false;
+        if (id.equalsIgnoreCase(activeChannel(player))) return true;
+        return selectChannel(player, id);
+    }
+
+    @Override public boolean leaveChannel(Player player) {
+        return enterChannel(player, settings.defaultChannel());
+    }
+
 
     public ChatService(
             FXChatBukkit plugin,
@@ -82,6 +158,7 @@ public final class ChatService implements AutoCloseable {
         this.scheduler = scheduler;
         this.messages = messages;
         this.settings = settings;
+        this.baseSettings = settings;
         this.sessions = sessions;
         this.renderer = renderer;
         this.functions = functions;
@@ -96,8 +173,17 @@ public final class ChatService implements AutoCloseable {
         this.leaveExternalChat = leaveExternalChat;
     }
 
-    public void updateSettings(Settings settings) {
-        this.settings = settings;
+    public synchronized void updateSettings(Settings settings) {
+        for (var entry : customChannels.values()) {
+            var labels = new java.util.ArrayList<>(entry.channel().commands());
+            labels.add(entry.channel().id());
+            for (String label : labels) {
+                if (settings.resolveChannel(label) != null)
+                    throw new IllegalArgumentException("Config conflicts with registered channel: " + label);
+            }
+        }
+        this.baseSettings = settings;
+        rebuildChannels();
     }
 
     public boolean togglePrivateSpy(UUID playerId) {
@@ -243,11 +329,16 @@ public final class ChatService implements AutoCloseable {
                 sendPublicMessage(targetPlayer, channelId, rawMessage));
     }
 
+    public boolean isCustomChannel(String id) { return customChannel(id) != null; }
+
     public String channelAlias(String alias) {
         if (alias == null || alias.isBlank()) {
             return null;
         }
-        return settings.resolveChannel(alias.toLowerCase(Locale.ROOT));
+        String id = settings.resolveChannel(alias.toLowerCase(Locale.ROOT));
+        RegisteredChannel custom = customChannel(id);
+        if (custom != null && custom.channel().commands().stream().noneMatch(alias::equalsIgnoreCase)) return null;
+        return id;
     }
 
     public boolean selectChannel(Player player, String channel) {
@@ -258,7 +349,7 @@ public final class ChatService implements AutoCloseable {
             previousChannel = current.defaultChannel();
         }
         String selectedChannel = current.resolveChannel(channel);
-        if (selectedChannel == null) {
+        if (selectedChannel == null || !mayEnter(player, selectedChannel)) {
             return false;
         }
         if (previousChannel.equalsIgnoreCase(selectedChannel)) {
@@ -299,6 +390,10 @@ public final class ChatService implements AutoCloseable {
             return;
         }
         if (!channel.permission().isBlank() && !player.hasPermission(channel.permission())) {
+            messages.send(player, "chat.channel-no-permission");
+            return;
+        }
+        if (!mayEnter(player, channel.id())) {
             messages.send(player, "chat.channel-no-permission");
             return;
         }
@@ -379,9 +474,19 @@ public final class ChatService implements AutoCloseable {
         Settings current = settings;
         Settings.ChannelSettings channel = current.channel(channelId);
         if (channel == null) {
-            channel = current.channels().values().iterator().next();
+            messages.send(player, "chat.channel-not-found");
+            return;
+        }
+        // A registration may have closed since this settings snapshot was read.
+        if (customChannel(channel.id()) == null && baseSettings.channel(channel.id()) == null) {
+            messages.send(player, "chat.channel-not-found");
+            return;
         }
         if (!channel.permission().isBlank() && !player.hasPermission(channel.permission())) {
+            messages.send(player, "chat.channel-no-permission");
+            return;
+        }
+        if (!mayEnter(player, channel.id())) {
             messages.send(player, "chat.channel-no-permission");
             return;
         }
@@ -405,6 +510,16 @@ public final class ChatService implements AutoCloseable {
             return;
         }
         if (!channel.permission().isBlank() && !player.hasPermission(channel.permission())) {
+            messages.send(player, "chat.channel-no-permission");
+            return;
+        }
+        RegisteredChannel custom = customChannel(channel.id());
+        String senderGroup = custom == null ? null : group(custom, player.getUniqueId());
+        if (custom == null && baseSettings.channel(channel.id()) == null) {
+            messages.send(player, "chat.channel-not-found");
+            return;
+        }
+        if (custom != null && senderGroup == null) {
             messages.send(player, "chat.channel-no-permission");
             return;
         }
@@ -436,7 +551,10 @@ public final class ChatService implements AutoCloseable {
         double deliveredChannelRange = channel.range();
         seenMessages.markIfNew(messageId);
         sessions.broadcast(scheduler, component, channel, snapshot,
-                (recipient, ignoredOrigin) -> !ignoreService.ignores(recipient.getUniqueId(), snapshot.id()),
+                (recipient, ignoredOrigin) -> !ignoreService.ignores(recipient.getUniqueId(), snapshot.id())
+                        && (custom == null || (customChannel(deliveredChannelId) == custom
+                        && senderGroup.equals(group(custom, snapshot.id()))
+                        && senderGroup.equals(group(custom, recipient.getUniqueId())))),
                 recipient -> functions.notifyMention(
                 recipient,
                 player.getUniqueId(),
@@ -453,7 +571,7 @@ public final class ChatService implements AutoCloseable {
                         });
                     }
                 });
-        if (customNameplates != null) {
+        if (customNameplates != null && custom == null) {
             customNameplates.onPublicChat(
                     player,
                     renderer.prepareInput(player, message, MessageRenderer.ColorTarget.CHAT),
@@ -570,6 +688,7 @@ public final class ChatService implements AutoCloseable {
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {
+            customChannels.clear();
             cooldowns.clear();
             lastMessages.clear();
             replyTargets.clear();

@@ -120,11 +120,11 @@ public final class FXChatListener implements Listener {
 
     @EventHandler
     public void onShowcaseClick(InventoryClickEvent event) {
-        if (event.getView().getTopInventory().getHolder() instanceof IgnoreService.Holder) {
+        if (event.getView().getTopInventory().getHolder(false) instanceof IgnoreService.Holder) {
             ignoreService.handleClick(event);
             return;
         }
-        if (event.getView().getTopInventory().getHolder() instanceof ShowcaseStore.Holder) {
+        if (event.getView().getTopInventory().getHolder(false) instanceof ShowcaseStore.Holder) {
             event.setCancelled(true);
             if (event.getClickedInventory() == event.getView().getTopInventory()
                     && event.getWhoClicked() instanceof Player player) {
@@ -135,11 +135,11 @@ public final class FXChatListener implements Listener {
 
     @EventHandler
     public void onShowcaseDrag(InventoryDragEvent event) {
-        if (event.getView().getTopInventory().getHolder() instanceof IgnoreService.Holder) {
+        if (event.getView().getTopInventory().getHolder(false) instanceof IgnoreService.Holder) {
             event.setCancelled(true);
             return;
         }
-        if (event.getView().getTopInventory().getHolder() instanceof ShowcaseStore.Holder) {
+        if (event.getView().getTopInventory().getHolder(false) instanceof ShowcaseStore.Holder) {
             event.setCancelled(true);
         }
     }

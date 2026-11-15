@@ -70,6 +70,8 @@ Commands:
 
 Use `/fxchat channel 公开` or `/g message` for the public channel. Use `/fxchat channel 附近` or `/f message` for the 80-block nearby channel. MiniMessage is always enabled for player chat. Use `/fxchat reload` after changing configuration.
 
+MiniMessage tags use the Adventure version provided by the server. Sprite and head tags require Minecraft 1.21.9+ with Adventure 4.25.0+. The notation `<sprite[:atlas]:sprite>` describes an optional atlas; use `<sprite:block/stone>` or `<sprite:'minecraft:blocks':'minecraft:block/stone'>` in messages. Quote namespaced IDs so their colons are not treated as argument separators. Player sprite input uses the `fxchat.color.chat.minimessages.sprite` permission (or the MiniMessage parent permission).
+
 Mute data is stored in `database.yml`. The default is file-based H2 at `data/fxchat`; set `type: mysql` and fill in the `mysql` section when all servers should share one database. Mute durations accept seconds (`60` or `60s`), minutes, hours, days, weeks, or `永久`.
 
 With the default function settings, send `[container]` while aiming at a container within six blocks to create a read-only container showcase. `[chest]` and `[barrel]` are aliases; the keys and range are configurable under `functions.yml -> container-show`.
@@ -83,3 +85,24 @@ Chat scripts are JavaScript files in `scripts/`. Each file can define `onChat(ev
 ## Threading boundary
 
 Network decoding and configuration parsing only carry immutable snapshots. Live Bukkit objects are accessed from their entity or region scheduler callback. Shared session, cooldown, and deduplication maps are concurrent and cleared on shutdown. The proxy never receives or stores Bukkit objects.
+
+
+### Bukkit 自定义频道 API
+
+其他插件可通过 Bukkit ServicesManager 获取 `com.dirges.fxchat.bukkit.api.FXChatApi`，并在 plugin.yml 声明 `depend: [FXChat]`。API 包在 Bukkit JAR 内，依赖方只需 compileOnly，不能把这些类打包进自己的 JAR。
+
+```java
+FXChatApi api = Bukkit.getServicesManager().load(FXChatApi.class);
+FXChatApi.Registration registration = api.registerChannel(this,
+    new CustomChannel("island", List.of("ic", "islandchat"), "starry.player",
+        "<aqua>[岛屿]</aqua> {player} » {message}", playerId -> findIslandId(playerId)));
+api.enterChannel(player, "island"); // 重复调用仍停留在该频道
+api.leaveChannel(player);           // 回到当前配置的默认频道
+registration.close();
+```
+
+`groupResolver` 返回稳定的分组 ID（例如岛屿 UUID），无权参与时返回 null。仅同组玩家能收到消息；发送者和接收者身份会在实际投递时复核。回调必须线程安全，不得访问其他玩家的实体/世界状态。注册、注销在全局线程执行；玩家操作在该玩家实体线程执行。
+
+只把 `commands` 注册为命令，频道 ID 不会抢占同名插件命令。命令名称不带 `/` 或参数，已有命令冲突会拒绝注册。频道与已有频道 ID/别名也不能重名。注册会保留到显式关闭或所属插件禁用，并跨 FXChat 配置重载保留；配置文件若与注册频道冲突，重载会失败并保留旧频道配置。
+
+此 API 的频道仅限当前服务器，沿用 FXChat 禁言、过滤、冷却、防重复、发送事件、格式化与屏蔽规则，不跨服发送，也不产生 CustomNameplates 公共气泡。`/ic` 进入频道，再次输入 `/ic` 返回默认公共频道；`/ic 内容` 仅向该频道发送一次，不切换当前频道。

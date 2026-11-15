@@ -3,6 +3,7 @@
 
 # Gradle cache folder
 .gradle
+.gradle-home/
 
 # Gradle build folder
 build

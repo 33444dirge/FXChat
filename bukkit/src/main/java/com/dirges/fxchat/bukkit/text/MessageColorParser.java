@@ -114,50 +114,70 @@ public final class MessageColorParser {
         COLOR, BOLD, UNDERLINED, ITALIC, STRIKETHROUGH, OBFUSCATED, RESET
     }
 
-    private static final Pattern MINI_TAG = Pattern.compile("<(/?)([#a-zA-Z][a-zA-Z0-9_-]*)(?:(:[^<>]*))?>");
+    // Inspect only the name: arguments may contain quoted '>', nested tags, or multiple colons.
+    private static final Pattern MINI_TAG = Pattern.compile("<(/?)([!?#]?[a-zA-Z0-9_-]+)(?=[:/>])");
 
     public static String filterMiniMessage(String input, EnumSet<MiniFeature> allowed) {
         if (input == null || input.isEmpty()) return input;
         Matcher matcher = MINI_TAG.matcher(input);
         StringBuffer result = new StringBuffer(input.length());
         while (matcher.find()) {
+            if (isEscaped(input, matcher.start())) continue;
             String name = matcher.group(2).toLowerCase(Locale.ROOT);
             MiniFeature feature = miniFeature(name);
             String replacement = feature != null && allowed.contains(feature)
                     ? matcher.group()
-                    : "\\\\" + matcher.group();
+                    : "\\" + matcher.group();
             matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
         }
         matcher.appendTail(result);
         return result.toString();
     }
 
+    private static boolean isEscaped(String input, int index) {
+        int backslashes = 0;
+        while (index > 0 && input.charAt(--index) == '\\') backslashes++;
+        return backslashes % 2 != 0;
+    }
+
     private static MiniFeature miniFeature(String name) {
-        if (name.startsWith("#") || name.equals("color") || name.equals("c")) return MiniFeature.COLOR;
+        if (name.startsWith("!")) name = name.substring(1);
+        if (name.startsWith("#") || name.equals("color") || name.equals("colour") || name.equals("c")
+                || isNamedColor(name)) return MiniFeature.COLOR;
         if (name.equals("shadow-color")) return MiniFeature.SHADOW_COLOR;
         if (name.equals("reset") || name.equals("reset-color") || name.equals("reset-decoration")) return MiniFeature.RESET;
         if (name.equals("bold") || name.equals("b") || name.equals("italic") || name.equals("i")
+                || name.equals("em")
                 || name.equals("underlined") || name.equals("u") || name.equals("strikethrough")
                 || name.equals("st") || name.equals("obfuscated") || name.equals("obf")) return MiniFeature.DECORATION;
         return switch (name) {
             case "click" -> MiniFeature.CLICK;
             case "hover" -> MiniFeature.HOVER;
             case "keybind" -> MiniFeature.KEYBIND;
-            case "translatable" -> MiniFeature.TRANSLATABLE;
-            case "fallback" -> MiniFeature.FALLBACK;
+            case "translatable", "translate", "tr", "lang" -> MiniFeature.TRANSLATABLE;
+            case "fallback", "translate_or", "tr_or", "lang_or" -> MiniFeature.FALLBACK;
             case "insertion" -> MiniFeature.INSERTION;
             case "rainbow" -> MiniFeature.RAINBOW;
             case "gradient" -> MiniFeature.GRADIENT;
             case "transition" -> MiniFeature.TRANSITION;
             case "font" -> MiniFeature.FONT;
-            case "newline" -> MiniFeature.NEWLINE;
-            case "selector" -> MiniFeature.SELECTOR;
+            case "newline", "br" -> MiniFeature.NEWLINE;
+            case "selector", "sel" -> MiniFeature.SELECTOR;
             case "score" -> MiniFeature.SCORE;
-            case "nbt" -> MiniFeature.NBT;
+            case "nbt", "data" -> MiniFeature.NBT;
             case "pride" -> MiniFeature.PRIDE;
             case "sprite" -> MiniFeature.SPRITE;
             case "head" -> MiniFeature.HEAD;
             default -> null;
+        };
+    }
+
+    private static boolean isNamedColor(String name) {
+        return switch (name) {
+            case "black", "dark_blue", "dark_green", "dark_aqua", "dark_red", "dark_purple",
+                    "gold", "gray", "dark_gray", "blue", "green", "aqua", "red", "light_purple",
+                    "yellow", "white", "grey", "dark_grey" -> true;
+            default -> false;
         };
     }
 

@@ -39,7 +39,6 @@ import org.bukkit.command.CommandMap;
 import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bstats.bukkit.Metrics;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -47,7 +46,6 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 
 public final class FXChatBukkit extends JavaPlugin {
-    private static final int BSTATS_PLUGIN_ID = 34270;
 
     private SchedulerFacade scheduler;
     private SettingsLoader settingsLoader;
@@ -66,7 +64,6 @@ public final class FXChatBukkit extends JavaPlugin {
     private CustomNameplatesHook customNameplates;
     private FXChatCommand command;
     private CommandMap commandMap;
-    private Metrics metrics;
     private final List<ConfigCommand> configuredCommands = new ArrayList<>();
     private volatile Settings settings;
 
@@ -78,7 +75,6 @@ public final class FXChatBukkit extends JavaPlugin {
             throw new IllegalStateException("Could not create plugin data folder: " + getDataFolder());
         }
         saveDefaultConfigIfMissing();
-        startBStats();
         List.of(
                 "proxy.yml",
                 "database.yml",
@@ -224,6 +220,13 @@ public final class FXChatBukkit extends JavaPlugin {
                 leaveExternalChat, customNameplates, muteService, privateSpyService, ignoreService,
                 playerChannelService, chatFilters);
         serviceReference.set(chatService);
+        getServer().getServicesManager().register(com.dirges.fxchat.bukkit.api.FXChatApi.class,
+                chatService, this, org.bukkit.plugin.ServicePriority.Normal);
+        Bukkit.getPluginManager().registerEvents(new org.bukkit.event.Listener() {
+            @org.bukkit.event.EventHandler public void disabled(org.bukkit.event.server.PluginDisableEvent event) {
+                if (event.getPlugin() != FXChatBukkit.this) chatService.unregisterChannels(event.getPlugin());
+            }
+        }, this);
         transport.enable();
 
         commandMap = getServer().getCommandMap();
@@ -275,33 +278,21 @@ public final class FXChatBukkit extends JavaPlugin {
         }
     }
 
-    /**
-     * Starts bStats, which is best-effort telemetry and must never decide whether
-     * the plugin loads.
-     *
-     * <p>bStats throws from its constructor when it detects that its classes were
-     * not relocated, and an exception escaping {@code onEnable} makes Bukkit
-     * unload the plugin. So the call is guarded: a metrics failure is reported
-     * and chat keeps working. The relocation in {@code bukkit/build.gradle.kts}
-     * is the actual fix for that specific error.</p>
-     */
-    private void startBStats() {
-        if (!getConfig().getBoolean("bstats.enabled", true)) {
-            getLogger().info("bStats metrics are disabled in config.yml.");
-            return;
-        }
-        try {
-            metrics = new Metrics(this, BSTATS_PLUGIN_ID);
-            getLogger().info("bStats metrics enabled.");
-        } catch (Throwable exception) {
-            metrics = null;
-            getLogger().log(java.util.logging.Level.WARNING,
-                    "Could not start bStats metrics; continuing without them.", exception);
+    public Settings settings() {
+        return chatService == null ? settings : chatService.settings();
+    }
+
+    public void validateChannelCommands(List<String> aliases) {
+        if (commandMap == null) return;
+        for (String alias : aliases) {
+            var existing = commandMap.getCommand(alias.toLowerCase(Locale.ROOT));
+            if (existing != null)
+                throw new IllegalArgumentException("Channel command is already owned by another plugin: /" + alias);
         }
     }
 
-    public Settings settings() {
-        return settings;
+    public void refreshChannelCommands() {
+        if (command != null) registerConfiguredCommands(command, settings());
     }
 
     public void reloadSettings(UUID replyPlayerId) {
@@ -316,6 +307,8 @@ public final class FXChatBukkit extends JavaPlugin {
                         new java.io.File(getDataFolder(), "scripts"), getLogger()::warning);
                 messages.reload(nextSettings.language());
                 scheduler.runGlobal(() -> {
+                    try {
+                    chatService.updateSettings(nextSettings);
                     settings = nextSettings;
                     functions.updateSettings(nextFunctions);
                     functions.updateCustomFunctions(nextCustomFunctions);
@@ -324,9 +317,12 @@ public final class FXChatBukkit extends JavaPlugin {
                     scripts.update(nextScripts);
                     chatFilters.update(nextSettings.filters());
                     ignoreService.reloadLayout();
-                    chatService.updateSettings(nextSettings);
-                    registerConfiguredCommands(command, nextSettings);
+                    registerConfiguredCommands(command, settings());
                     sendReloadResult(replyPlayerId, "command.reload-success");
+                    } catch (RuntimeException exception) {
+                        getLogger().log(Level.WARNING, "Could not reload FXChat configuration", exception);
+                        sendReloadResult(replyPlayerId, "command.reload-failed");
+                    }
                 });
             } catch (RuntimeException exception) {
                 getLogger().log(Level.WARNING, "Could not reload FXChat configuration", exception);
@@ -345,6 +341,7 @@ public final class FXChatBukkit extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        getServer().getServicesManager().unregisterAll(this);
         unregisterConfiguredCommands();
         if (chatService != null) {
             chatService.close();
@@ -386,12 +383,7 @@ public final class FXChatBukkit extends JavaPlugin {
         if (scheduler != null) {
             scheduler.close();
         }
-        // bStats owns a ScheduledThreadPoolExecutor; shutting it down stops the
-        // submission task from outliving an unload or a reload.
-        if (metrics != null) {
-            metrics.shutdown();
-            metrics = null;
-        }
+
     }
 
     private void registerViewCommand(String name, FXChatCommand command) {
@@ -409,6 +401,12 @@ public final class FXChatBukkit extends JavaPlugin {
         Set<String> labels = new HashSet<>();
         for (Settings.ChannelSettings channel : current.channels().values()) {
             String description = "Send a message to the " + channel.id() + " chat channel";
+            if (chatService != null && chatService.isCustomChannel(channel.id())) {
+                if (!channel.aliases().isEmpty()) registerConfiguredCommand(handler, labels,
+                        channel.aliases().getFirst(), channel.aliases().subList(1, channel.aliases().size()),
+                        description, "/" + channel.aliases().getFirst() + " [message]", ConfigCommand.Kind.CHANNEL);
+                continue;
+            }
             String commandName = normalizeCommandName(channel.id());
             if (commandName != null) {
                 registerConfiguredCommand(
